@@ -20,6 +20,12 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      workbox: {
+        // service worker ตอบ navigation ทุกอันด้วย index.html (SPA fallback)
+        // ถ้าไม่กัน /api กับ /ws ไว้ การ redirect กลับจาก Google
+        // (/api/auth/callback/google) จะโดน SW คว้าไปแล้ว render หน้า Not Found แทน
+        navigateFallbackDenylist: [/^\/api\//, /^\/ws\//],
+      },
       manifest: {
         name: "ปริศนาฟ้าแลบ",
         short_name: "ฟ้าแลบ",
