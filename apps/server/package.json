@@ -15,14 +15,17 @@
     "@singpore-game/auth": "workspace:*",
     "@singpore-game/db": "workspace:*",
     "@singpore-game/env": "workspace:*",
+    "@singpore-game/game-core": "workspace:*",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "drizzle-orm": "^0.45.2",
     "elysia": "^1.4.29",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@singpore-game/config": "workspace:*",
     "@types/bun": "catalog:",
+    "@types/pg": "^8.20.0",
     "tsdown": "^0.22.14",
     "typescript": "catalog:"
   }

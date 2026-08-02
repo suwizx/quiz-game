@@ -2,7 +2,6 @@ import { Toaster } from "@singpore-game/ui/components/sonner";
 import { HeadContent, Outlet, createRootRouteWithContext } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
-import Header from "@/components/header";
 import { ThemeProvider } from "@/components/theme-provider";
 
 import "../index.css";
@@ -14,11 +13,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
   head: () => ({
     meta: [
       {
-        title: "singpore-game",
+        title: "ปริศนาฟ้าแลบ",
       },
       {
         name: "description",
-        content: "singpore-game is a web application",
+        content: "เกมควิซแข่งสะสม streak เล่นพร้อมกันทั้งห้อง",
       },
     ],
     links: [
@@ -40,11 +39,11 @@ function RootComponent() {
         disableTransitionOnChange
         storageKey="vite-ui-theme"
       >
-        <div className="grid grid-rows-[auto_1fr] h-svh">
-          <Header />
+        {/* ไม่มี header กลาง — แต่ละ layout จัดพื้นที่เอง เพราะหน้าเล่นต้องใช้เต็มจอ */}
+        <div className="h-dvh overflow-hidden">
           <Outlet />
         </div>
-        <Toaster richColors />
+        <Toaster richColors position="top-center" />
       </ThemeProvider>
       <TanStackRouterDevtools position="bottom-left" />
     </>

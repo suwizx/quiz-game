@@ -5,18 +5,23 @@
     ".": {
       "default": "./src/index.ts"
     },
+    "./schema": {
+      "default": "./src/schema/index.ts"
+    },
     "./*": {
       "default": "./src/*.ts"
     }
   },
   "scripts": {
-    "db:push": "drizzle-kit push",
     "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:seed": "bun --env-file=../../apps/server/.env run src/seed.ts",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@singpore-game/env": "workspace:*",
+    "@singpore-game/game-core": "workspace:*",
     "dotenv": "catalog:",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.22.0",

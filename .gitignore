@@ -49,6 +49,9 @@ lerna-debug.log*
 coverage
 .nyc_output
 
+# ข้อมูลนักศึกษาจริง (ชื่อ + รหัส) ห้ามขึ้น repo สาธารณะ
+docs/*.csv
+
 # Misc
 *.tgz
 .cache

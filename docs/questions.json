@@ -1,0 +1,157 @@
+[
+  {
+    "text": "ดาวเคราะห์ดวงใดอยู่ใกล้ดวงอาทิตย์ที่สุด",
+    "choices": ["ดาวพุธ", "ดาวศุกร์", "ดาวอังคาร", "โลก"],
+    "correctIndex": 0
+  },
+  {
+    "text": "สัญลักษณ์ทางเคมีของทองคำคืออะไร",
+    "choices": ["Ag", "Au", "Fe", "Cu"],
+    "correctIndex": 1
+  },
+  {
+    "text": "ประเทศใดมีประชากรมากที่สุดในอาเซียน",
+    "choices": ["ฟิลิปปินส์", "เวียดนาม", "อินโดนีเซีย", "ไทย"],
+    "correctIndex": 2
+  },
+  {
+    "text": "แม่น้ำสายใดยาวที่สุดในทวีปเอเชีย",
+    "choices": ["แม่น้ำโขง", "แม่น้ำคงคา", "แม่น้ำสินธุ", "แม่น้ำแยงซี"],
+    "correctIndex": 3
+  },
+  {
+    "text": "1 กิบิไบต์ (KiB) เท่ากับกี่ไบต์",
+    "choices": ["1024", "1000", "512", "2048"],
+    "correctIndex": 0
+  },
+  {
+    "text": "ใครเป็นผู้สร้างภาษาโปรแกรม Python",
+    "choices": ["James Gosling", "Guido van Rossum", "Brendan Eich", "Dennis Ritchie"],
+    "correctIndex": 1
+  },
+  {
+    "text": "HTTP status code 404 หมายถึงอะไร",
+    "choices": ["Forbidden", "Internal Server Error", "Not Found", "Unauthorized"],
+    "correctIndex": 2
+  },
+  {
+    "text": "ใครเป็นผู้เริ่มพัฒนา Linux kernel",
+    "choices": ["Richard Stallman", "Ken Thompson", "Bill Joy", "Linus Torvalds"],
+    "correctIndex": 3
+  },
+  {
+    "text": "ระบบเลขฐานสองใช้สัญลักษณ์กี่ตัว",
+    "choices": ["2", "8", "10", "16"],
+    "correctIndex": 0
+  },
+  {
+    "text": "หน่วยความจำชนิดใดที่ข้อมูลหายไปเมื่อปิดเครื่อง",
+    "choices": ["SSD", "RAM", "ROM", "Hard disk"],
+    "correctIndex": 1
+  },
+  {
+    "text": "คำสั่ง SQL ใดใช้สำหรับดึงข้อมูลออกจากตาราง",
+    "choices": ["INSERT", "UPDATE", "SELECT", "DELETE"],
+    "correctIndex": 2
+  },
+  {
+    "text": "จังหวัดใดของไทยมีพื้นที่มากที่สุด",
+    "choices": ["เชียงใหม่", "กาญจนบุรี", "อุบลราชธานี", "นครราชสีมา"],
+    "correctIndex": 3
+  },
+  {
+    "text": "ปัจจุบันประเทศไทยมีกี่จังหวัด",
+    "choices": ["77", "76", "78", "75"],
+    "correctIndex": 0
+  },
+  {
+    "text": "แก๊สชนิดใดมีสัดส่วนมากที่สุดในอากาศ",
+    "choices": ["ออกซิเจน", "ไนโตรเจน", "คาร์บอนไดออกไซด์", "อาร์กอน"],
+    "correctIndex": 1
+  },
+  {
+    "text": "CPU ย่อมาจากอะไร",
+    "choices": [
+      "Computer Processing Unit",
+      "Control Program Unit",
+      "Central Processing Unit",
+      "Central Program Utility"
+    ],
+    "correctIndex": 2
+  },
+  {
+    "text": "คำสั่ง Git ใดใช้บันทึกการเปลี่ยนแปลงลง repository",
+    "choices": ["git push", "git add", "git status", "git commit"],
+    "correctIndex": 3
+  },
+  {
+    "text": "โปรโตคอลใดใช้สำหรับส่งอีเมลออก",
+    "choices": ["SMTP", "IMAP", "POP3", "FTP"],
+    "correctIndex": 0
+  },
+  {
+    "text": "IPv4 address มีขนาดกี่บิต",
+    "choices": ["16", "32", "64", "128"],
+    "correctIndex": 1
+  },
+  {
+    "text": "ทวีปใดมีพื้นที่ใหญ่ที่สุดในโลก",
+    "choices": ["แอฟริกา", "อเมริกาเหนือ", "เอเชีย", "ยุโรป"],
+    "correctIndex": 2
+  },
+  {
+    "text": "มหาสมุทรใดมีขนาดใหญ่ที่สุด",
+    "choices": ["แอตแลนติก", "อินเดีย", "อาร์กติก", "แปซิฟิก"],
+    "correctIndex": 3
+  },
+  {
+    "text": "โครงสร้างข้อมูลแบบเข้าทีหลังออกก่อน (LIFO) เรียกว่าอะไร",
+    "choices": ["Stack", "Queue", "Linked list", "Tree"],
+    "correctIndex": 0
+  },
+  {
+    "text": "เลขฐานสอง 1010 มีค่าเท่ากับเลขฐานสิบเท่าใด",
+    "choices": ["8", "10", "12", "14"],
+    "correctIndex": 1
+  },
+  {
+    "text": "ประเทศญี่ปุ่นใช้สกุลเงินอะไร",
+    "choices": ["วอน", "หยวน", "เยน", "ริงกิต"],
+    "correctIndex": 2
+  },
+  {
+    "text": "หน่วยวัดความถี่ในระบบ SI คืออะไร",
+    "choices": ["นิวตัน", "จูล", "วัตต์", "เฮิรตซ์"],
+    "correctIndex": 3
+  },
+  {
+    "text": "ใครเป็นผู้เสนอทฤษฎีสัมพัทธภาพ",
+    "choices": ["อัลเบิร์ต ไอน์สไตน์", "ไอแซก นิวตัน", "นีลส์ บอร์", "กาลิเลโอ"],
+    "correctIndex": 0
+  },
+  {
+    "text": "ภาษาใดใช้กำหนดรูปแบบและการจัดวางของหน้าเว็บ",
+    "choices": ["HTML", "CSS", "SQL", "JSON"],
+    "correctIndex": 1
+  },
+  {
+    "text": "อัลกอริทึมการเรียงลำดับใดมีความซับซ้อนเฉลี่ย O(n log n)",
+    "choices": ["Bubble sort", "Insertion sort", "Merge sort", "Selection sort"],
+    "correctIndex": 2
+  },
+  {
+    "text": "พอร์ตมาตรฐานของ HTTPS คือพอร์ตใด",
+    "choices": ["21", "80", "8080", "443"],
+    "correctIndex": 3
+  },
+  {
+    "text": "หน่วยพื้นฐานของสิ่งมีชีวิตคืออะไร",
+    "choices": ["เซลล์", "เนื้อเยื่อ", "อวัยวะ", "โมเลกุล"],
+    "correctIndex": 0
+  },
+  {
+    "text": "ระบบปฏิบัติการ Android พัฒนาต่อยอดมาจากเคอร์เนลใด",
+    "choices": ["BSD", "Linux", "Windows NT", "Mach"],
+    "correctIndex": 1
+  }
+]

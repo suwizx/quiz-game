@@ -21,9 +21,9 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "singpore-game",
-        short_name: "singpore-game",
-        description: "singpore-game - PWA Application",
+        name: "ปริศนาฟ้าแลบ",
+        short_name: "ฟ้าแลบ",
+        description: "เกมควิซแข่งสะสม streak เล่นพร้อมกันทั้งห้อง",
         theme_color: "#0c0c0c",
       },
       pwaAssets: { disabled: false, config: true },

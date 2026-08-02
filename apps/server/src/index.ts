@@ -3,11 +3,16 @@ import { auth } from "@singpore-game/auth";
 import { env } from "@singpore-game/env/server";
 import { Elysia } from "elysia";
 
-new Elysia()
+import { adminRoutes } from "./modules/admin/routes";
+import * as hub from "./modules/game/hub";
+import { gameRoutes } from "./modules/game/routes";
+import { gameSocket } from "./modules/game/ws";
+
+const app = new Elysia()
   .use(
     cors({
       origin: env.CORS_ORIGIN,
-      methods: ["GET", "POST", "OPTIONS"],
+      methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization"],
       credentials: true,
     }),
@@ -19,7 +24,15 @@ new Elysia()
     }
     return status(405);
   })
+  .use(gameRoutes)
+  .use(adminRoutes)
+  .use(gameSocket)
   .get("/", () => "OK")
   .listen(3000, () => {
     console.log("Server is running on http://localhost:3000");
   });
+
+// ลูปกลาง: เดินสถานะเกม ส่ง tick/กระดานคะแนน และ heartbeat กัน tunnel ตัดสาย
+hub.startLoop();
+
+export type App = typeof app;
