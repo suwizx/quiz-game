@@ -1,0 +1,3 @@
+{
+  "extends": "@singpore-game/config/tsconfig.base.json"
+}

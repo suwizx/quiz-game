@@ -1,0 +1,24 @@
+{
+  "name": "@singpore-game/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@singpore-game/db": "workspace:*",
+    "@singpore-game/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@singpore-game/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
