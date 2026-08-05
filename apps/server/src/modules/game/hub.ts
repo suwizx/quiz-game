@@ -172,6 +172,12 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
   };
 }
 
+/** ส่ง snapshot ให้ผู้ใช้คนเดียว — ใช้ตอนสถานะของเขาเปลี่ยนคนเดียว เช่นเพิ่งกดเข้าร่วม */
+export async function pushStateTo(userId: string) {
+  const event = await buildStateFor(userId);
+  if (event) sendToUser(userId, event);
+}
+
 export async function broadcastState() {
   for (const connection of connections.values()) {
     const event = await buildStateFor(connection.userId);

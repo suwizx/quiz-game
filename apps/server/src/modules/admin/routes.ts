@@ -8,7 +8,7 @@ import {
 } from "@singpore-game/db/admins";
 import { question } from "@singpore-game/db/schema";
 import { CHOICE_COUNT } from "@singpore-game/game-core";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 
 import { requireAdmin } from "../../lib/session";
@@ -89,9 +89,12 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       const [updated] = await db
         .update(question)
         .set(body)
-        .where(eq(question.id, params.id))
+        .where(and(eq(question.id, params.id), isNull(question.deletedAt)))
         .returning();
       if (!updated) return status(404, { message: "ไม่พบคำถามนี้" });
+
+      // คนที่กำลังถือข้อนี้อยู่ต้องได้ของใหม่ทันที ไม่ใช่รอตอบข้อเก่าให้จบก่อน
+      await hub.broadcastState();
       return updated;
     },
     {
@@ -102,12 +105,17 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   .delete(
     "/questions/:id",
     async ({ params, status }) => {
+      // ไม่ลบแถวจริง เพราะ answer ของรอบก่อน ๆ อ้างถึงอยู่ (ลบแล้วสถิติหายยกชุด)
+      // แต่ปิดใช้งาน + ตี deletedAt = หายจากหน้า admin และไม่ถูกแจกอีก
       const [deleted] = await db
         .update(question)
-        .set({ isActive: false })
-        .where(eq(question.id, params.id))
+        .set({ isActive: false, deletedAt: new Date() })
+        .where(and(eq(question.id, params.id), isNull(question.deletedAt)))
         .returning();
       if (!deleted) return status(404, { message: "ไม่พบคำถามนี้" });
+
+      // ผู้เล่นที่ค้างอยู่ที่ข้อนี้ต้องถูกเปลี่ยนข้อทันที ไม่ต้องรอให้ตอบข้อที่ถูกลบไปแล้ว
+      await hub.broadcastState();
       return { ok: true };
     },
     { params: t.Object({ id: t.String() }) },

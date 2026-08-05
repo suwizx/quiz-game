@@ -31,7 +31,13 @@ export const question = pgTable(
     /** ตัวเลือก 4 ข้อ — ตรวจความยาวที่ชั้น API */
     choices: jsonb("choices").$type<string[]>().notNull(),
     correctIndex: integer("correct_index").notNull(),
+    /** ปิดใช้งานชั่วคราว — ไม่ถูกแจกในเกมแต่ยังอยู่ในหน้า admin เปิดกลับได้ */
     isActive: boolean("is_active").default(true).notNull(),
+    /**
+     * ลบแล้ว — หายจากหน้า admin และไม่ถูกแจกอีก
+     * ไม่ลบแถวจริงเพราะ answer อ้างถึงอยู่ สถิติของรอบก่อน ๆ จะพังตามไปด้วย
+     */
+    deletedAt: timestamp("deleted_at"),
     /** โน้ตภายในของ admin — ผู้เล่นไม่มีทางเห็น */
     adminComment: text("admin_comment"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -40,7 +46,7 @@ export const question = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("question_active_idx").on(table.isActive)],
+  (table) => [index("question_active_idx").on(table.isActive, table.deletedAt)],
 );
 
 export const gameStatus = pgEnum("game_status", ["lobby", "countdown", "running", "ended"]);

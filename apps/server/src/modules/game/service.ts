@@ -2,6 +2,7 @@ import { type Db, createDb } from "@singpore-game/db";
 import { answer, game, participant, question, roster } from "@singpore-game/db/schema";
 import {
   DEFAULT_DURATION_SEC,
+  NICKNAME_MAX_LENGTH,
   type GameState,
   type LobbyPlayer,
   type PlayerScore,
@@ -12,7 +13,7 @@ import {
   compareParticipants,
   nextQuestion,
 } from "@singpore-game/game-core";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 export const db: Db = createDb();
 
@@ -113,11 +114,17 @@ export async function resetGame(durationSec = DEFAULT_DURATION_SEC) {
 
 /* ------------------------------------------------------------- ผู้เล่น */
 
-/** ชื่อตั้งต้นจาก roster ตามรหัสนักศึกษา ถ้าไม่เจอค่อยใช้ชื่อจาก Google */
+/**
+ * ชื่อตั้งต้น "รหัสนักศึกษา ชื่อเต็ม" เช่น "67070001 นายกฤตภัทร แจ่มวัฏกูล"
+ * ชื่อเต็มมาจาก roster ตามรหัส ถ้าไม่เจอในรายชื่อค่อยใช้ชื่อจาก Google
+ * ไม่มีรหัส (เช่นอีเมล admin ที่ไม่ใช่ของนักศึกษา) ก็ใช้ชื่อ Google เปล่า ๆ
+ */
 export async function suggestedNickname(studentId: string | null, fallback: string) {
-  if (!studentId) return fallback;
+  if (!studentId) return fallback.trim().slice(0, NICKNAME_MAX_LENGTH);
+
   const row = await db.query.roster.findFirst({ where: eq(roster.studentId, studentId) });
-  return row?.fullnameTh ?? fallback;
+  const fullname = row?.fullnameTh ?? fallback;
+  return `${studentId} ${fullname}`.trim().slice(0, NICKNAME_MAX_LENGTH);
 }
 
 export async function getParticipant(gameId: string, userId: string) {
@@ -170,11 +177,11 @@ export async function listLobbyPlayers(gameId: string): Promise<LobbyPlayer[]> {
 
 /* ------------------------------------------------------------ คำถาม */
 
+/** เงื่อนไข "ข้อที่เอาไปแจกในเกมได้" — ยังเปิดใช้งานและยังไม่ถูกลบ */
+const servable = and(eq(question.isActive, true), isNull(question.deletedAt));
+
 async function activeQuestionIds(): Promise<string[]> {
-  const rows = await db
-    .select({ id: question.id })
-    .from(question)
-    .where(eq(question.isActive, true));
+  const rows = await db.select({ id: question.id }).from(question).where(servable);
   return rows.map((row) => row.id);
 }
 
@@ -202,8 +209,9 @@ export async function serveQuestion(participantId: string): Promise<QuestionView
   if (!row) return null;
 
   if (row.currentQuestionId && row.currentServedAt) {
+    // ข้อที่ค้างอยู่อาจถูกลบ/ปิดใช้งานไปแล้วระหว่างที่ผู้เล่นกำลังดูอยู่ — ข้ามไปข้อใหม่
     const current = await db.query.question.findFirst({
-      where: eq(question.id, row.currentQuestionId),
+      where: and(eq(question.id, row.currentQuestionId), servable),
     });
     if (current) return toQuestionView(current, row.questionNumber, row.currentServedAt);
   }
@@ -268,6 +276,9 @@ export async function submitAnswer(input: {
       where: eq(question.id, input.questionId),
     });
     if (!current) return { ok: false, reason: "not_found" } as const;
+
+    // ถูกลบ/ปิดใช้งานหลังจากเสิร์ฟ — ไม่นับคะแนนข้อนี้ ให้ client sync ข้อใหม่แทน
+    if (!current.isActive || current.deletedAt) return { ok: false, reason: "stale" } as const;
 
     const isCorrect = current.correctIndex === input.choiceIndex;
     const responseMs = Date.now() - (row.currentServedAt?.getTime() ?? Date.now());
@@ -348,6 +359,8 @@ export async function questionStats() {
     })
     .from(question)
     .leftJoin(answer, eq(answer.questionId, question.id))
+    // ข้อที่ลบไปแล้วไม่ต้องโผล่ในหน้า admin อีก (ยังอยู่ใน db เพื่อไม่ให้สถิติรอบเก่าพัง)
+    .where(isNull(question.deletedAt))
     .groupBy(question.id)
     .orderBy(question.createdAt);
 

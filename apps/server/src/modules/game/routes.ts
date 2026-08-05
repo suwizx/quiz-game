@@ -1,4 +1,5 @@
 import { isDevLoginEnabled, isGoogleAuthConfigured } from "@singpore-game/env/server";
+import { NICKNAME_MAX_LENGTH } from "@singpore-game/game-core";
 import { Elysia, t } from "elysia";
 
 import { requireUser, withUser } from "../../lib/session";
@@ -52,11 +53,13 @@ export const gameRoutes = new Elysia({ prefix: "/api/game" })
       });
 
       await hub.broadcastLobby(current.id);
+      // แท็บอื่นของคนเดียวกันต้องรู้ว่าเข้าร่วมแล้วด้วย ไม่ใช่รู้แค่แท็บที่กด
+      await hub.pushStateTo(user.id);
       return { participantId: row.id, nickname: row.nickname };
     },
     {
       body: t.Object({
-        nickname: t.String({ minLength: 1, maxLength: 40 }),
+        nickname: t.String({ minLength: 1, maxLength: NICKNAME_MAX_LENGTH }),
       }),
     },
   );

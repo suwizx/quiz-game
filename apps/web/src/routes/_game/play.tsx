@@ -1,12 +1,12 @@
-import { STREAK_BAR_MAX } from "@singpore-game/game-core";
+import { STREAK_BAR_MAX, type QuestionView } from "@singpore-game/game-core";
 import { Button } from "@singpore-game/ui/components/button";
 import { StreakPipe } from "@singpore-game/ui/components/streak-pipe";
 import { cn } from "@singpore-game/ui/lib/utils";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { Check, ChevronsDown, ChevronsUp, ListOrdered, Timer, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { useGameSocket } from "@/lib/game-socket";
+import { type AnswerResult, useGameSocket } from "@/lib/game-socket";
 
 export const Route = createFileRoute("/_game/play")({
   component: PlayPage,
@@ -15,31 +15,56 @@ export const Route = createFileRoute("/_game/play")({
 const CHOICE_LABELS = ["ก", "ข", "ค", "ง"];
 /** โชว์ผลถูก/ผิดสั้น ๆ ก่อนสไลด์ไปข้อถัดไป */
 const FEEDBACK_MS = 350;
+/** ตอบไปแล้วแต่ผลไม่กลับมาสักที (แพ็กเก็ตหาย) — ปลดล็อกให้กดใหม่ได้ */
+const ANSWER_TIMEOUT_MS = 4000;
+
+/** ข้อที่เพิ่งกดตอบ ค้างไว้จนกว่าจะโชว์ผลเสร็จ ไม่งั้นข้อถัดไปเด้งมาทับก่อนเห็นผล */
+interface Pending {
+  question: QuestionView;
+  index: number;
+  /**
+   * ผลล่าสุด ณ ตอนที่กด — ใช้แยกว่าผลที่เห็นอยู่เป็นของข้อนี้จริง ไม่ใช่ผลเก่าที่ id บังเอิญซ้ำ
+   * (เหลือคำถาม active ข้อเดียว ข้อถัดไปจะเป็น id เดิม)
+   */
+  previous: AnswerResult | null;
+}
 
 function PlayPage() {
   const { question, score, rank, remainingMs, lastResult, answer, notices, dismissNotice } =
     useGameSocket();
 
-  const [picked, setPicked] = useState<number | null>(null);
-  const pendingRef = useRef<string | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
 
-  // ล้างตัวเลือกที่กดค้างไว้เมื่อคำถามเปลี่ยนเป็นข้อใหม่
+  // ผลลัพธ์ต้องเป็นของข้อที่เพิ่งกดเท่านั้น — ผลของข้อก่อนหน้ายังค้างอยู่ใน state
+  // (เคยทำให้ข้อที่ตอบถูกโชว์กากบาทแดงแวบหนึ่งก่อนจะเปลี่ยนเป็นถูก)
+  const result =
+    pending && lastResult !== pending.previous && lastResult?.questionId === pending.question.id
+      ? lastResult
+      : null;
+
   useEffect(() => {
-    if (!question) return;
-    if (pendingRef.current !== question.id) {
-      pendingRef.current = question.id;
-      const id = setTimeout(() => setPicked(null), FEEDBACK_MS);
-      return () => clearTimeout(id);
+    if (!pending) return;
+
+    // เซิร์ฟเวอร์ push ข้อใหม่มาโดยไม่มีผลลัพธ์ (เช่น ข้อนั้นถูกปิดใช้งานกลางคัน) — ไปต่อเลย
+    if (!result && question && question.id !== pending.question.id) {
+      setPending(null);
+      return;
     }
-  }, [question]);
+
+    const id = setTimeout(() => setPending(null), result ? FEEDBACK_MS : ANSWER_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, [pending, result, question]);
 
   const choose = (index: number) => {
-    if (!question || picked !== null) return;
-    setPicked(index);
+    if (!question || pending) return;
+    setPending({ question, index, previous: lastResult });
     answer(question.id, index);
   };
 
-  const wasCorrect = lastResult && picked !== null ? lastResult.correct : null;
+  // ระหว่างรอผล/โชว์ผล ยังต้องเห็นข้อเดิม ไม่ใช่ข้อถัดไปที่เซิร์ฟเวอร์ส่งมาพร้อมผล
+  const shown = pending?.question ?? question;
+  const picked = pending?.index ?? null;
+  const wasCorrect = result ? result.correct : null;
 
   return (
     <div className="grid h-full grid-rows-[auto_1fr_auto] overflow-hidden">
@@ -49,21 +74,21 @@ function PlayPage() {
         <StreakPipe value={score.currentStreak} max={STREAK_BAR_MAX} />
 
         <div className="flex min-h-0 flex-col gap-3">
-          {question ? (
+          {shown ? (
             <>
               <div className="flex min-h-0 flex-1 flex-col justify-center">
-                <p className="text-muted-foreground text-xs">ข้อที่ {question.number}</p>
+                <p className="text-muted-foreground text-xs">ข้อที่ {shown.number}</p>
                 <h2 className="mt-1 text-balance font-semibold text-lg leading-snug">
-                  {question.text}
+                  {shown.text}
                 </h2>
               </div>
 
               <div className="grid shrink-0 gap-2">
-                {question.choices.map((choice, index) => {
+                {shown.choices.map((choice, index) => {
                   const isPicked = picked === index;
                   return (
                     <button
-                      key={`${question.id}-${index}`}
+                      key={`${shown.id}-${index}`}
                       type="button"
                       disabled={picked !== null}
                       onClick={() => choose(index)}

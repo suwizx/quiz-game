@@ -24,26 +24,38 @@ export interface QueuePosition {
 /**
  * ดึงคำถามถัดไป ถ้าหมดคิวแล้วสับใหม่วนต่อ (ไม่มีใครหมดคำถามก่อนหมดเวลา)
  * ตอนสับใหม่จะกันไม่ให้ข้อแรกซ้ำกับข้อสุดท้ายที่เพิ่งเจอไป
+ *
+ * คิวถูกสับไว้ตั้งแต่ตอน join ข้อที่ admin ลบ/ปิดใช้งานระหว่างเกมจึงยังค้างอยู่ในคิวเก่า
+ * ต้องข้ามทิ้งด้วย questionIds (= ข้อที่ยัง active) ไม่ใช่ใช้แค่ตอนสับคิวใหม่
  */
 export function nextQuestion(
   position: QueuePosition,
   questionIds: readonly string[],
 ): { questionId: string; next: QueuePosition } | null {
-  if (questionIds.length === 0) return null;
+  const active = new Set(questionIds);
+  if (active.size === 0) return null;
 
   let { queue, index } = position;
+  let reshuffled = false;
 
-  if (index >= queue.length) {
-    const last = queue.at(-1);
-    queue = buildQueue(questionIds);
-    if (queue.length > 1 && queue[0] === last) {
-      [queue[0], queue[1]] = [queue[1] as string, queue[0] as string];
+  while (true) {
+    if (index >= queue.length) {
+      // สับใหม่ได้ครั้งเดียวพอ — คิวใหม่สร้างจาก active ล้วน ๆ ข้อแรกใช้ได้แน่นอน
+      if (reshuffled) return null;
+
+      const last = queue.at(-1);
+      queue = buildQueue(questionIds);
+      if (queue.length > 1 && queue[0] === last) {
+        [queue[0], queue[1]] = [queue[1] as string, queue[0] as string];
+      }
+      index = 0;
+      reshuffled = true;
     }
-    index = 0;
+
+    const questionId = queue[index];
+    index += 1;
+    if (questionId !== undefined && active.has(questionId)) {
+      return { questionId, next: { queue, index } };
+    }
   }
-
-  const questionId = queue[index];
-  if (questionId === undefined) return null;
-
-  return { questionId, next: { queue, index: index + 1 } };
 }

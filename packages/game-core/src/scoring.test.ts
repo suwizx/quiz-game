@@ -125,4 +125,30 @@ describe("queue", () => {
   test("ไม่มีคำถามในระบบเลยคืน null", () => {
     expect(nextQuestion({ queue: [], index: 0 }, [])).toBeNull();
   });
+
+  test("ข้อที่ถูกลบระหว่างเกมถูกข้าม ไม่โผล่มาให้ตอบอีก", () => {
+    const remaining = ids.filter((id) => id !== "q3" && id !== "q5");
+    let position = { queue: [...ids], index: 0 };
+
+    for (let i = 0; i < ids.length * 3; i++) {
+      const result = nextQuestion(position, remaining);
+      expect(result).not.toBeNull();
+      expect(remaining).toContain(result!.questionId);
+      position = result!.next;
+    }
+  });
+
+  test("ลบจนเหลือข้อเดียวก็ยังเดินต่อได้", () => {
+    let position = { queue: [...ids], index: 0 };
+
+    for (let i = 0; i < 5; i++) {
+      const result = nextQuestion(position, ["q7"]);
+      expect(result?.questionId).toBe("q7");
+      position = result!.next;
+    }
+  });
+
+  test("ลบคำถามหมดทุกข้อคืน null ไม่วนไม่รู้จบ", () => {
+    expect(nextQuestion({ queue: [...ids], index: 0 }, [])).toBeNull();
+  });
 });

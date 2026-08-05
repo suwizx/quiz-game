@@ -110,6 +110,8 @@ function QuestionRow({
 }) {
   const [comment, setComment] = useState(question.adminComment ?? "");
   const [savingComment, setSavingComment] = useState(false);
+  // กดถังขยะครั้งเดียวแล้วหายเลยอันตรายเกินไป (กู้คืนจากหน้า admin ไม่ได้) — ให้ยืนยันก่อน
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const answered = question.correctCount + question.wrongCount;
   const accuracy = accuracyPercent(question.correctCount, question.wrongCount);
 
@@ -194,17 +196,33 @@ function QuestionRow({
         >
           {question.isActive ? "ปิดใช้งาน" : "เปิดใช้งาน"}
         </Button>
-        {question.isActive && (
-          <Button
-            size="xs"
-            variant="destructive"
-            onClick={async () => {
-              await api.admin.deleteQuestion(question.id);
-              await onRefresh();
-              toast.success("ปิดใช้งานคำถามแล้ว");
-            }}
-          >
+        {confirmingDelete ? (
+          <>
+            <Button
+              size="xs"
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  await api.admin.deleteQuestion(question.id);
+                  await onRefresh();
+                  toast.success("ลบคำถามแล้ว");
+                } catch (error) {
+                  setConfirmingDelete(false);
+                  toast.error(error instanceof Error ? error.message : "ลบไม่สำเร็จ");
+                }
+              }}
+            >
+              <Trash2 className="size-3" />
+              ยืนยันลบถาวร
+            </Button>
+            <Button size="xs" variant="ghost" onClick={() => setConfirmingDelete(false)}>
+              ยกเลิก
+            </Button>
+          </>
+        ) : (
+          <Button size="xs" variant="outline" onClick={() => setConfirmingDelete(true)}>
             <Trash2 className="size-3" />
+            ลบ
           </Button>
         )}
       </div>

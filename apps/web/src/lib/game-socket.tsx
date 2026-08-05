@@ -37,6 +37,8 @@ interface GameSocketValue {
   /** เคยต่อติดแล้วหลุด — ใช้แยกจากการต่อครั้งแรกเพื่อไม่ขึ้นแบนเนอร์เตือนโดยไม่จำเป็น */
   reconnecting: boolean;
   game: GameState | null;
+  /** อยู่ในเกมรอบปัจจุบันแล้วหรือยัง — null คือยังไม่ได้ snapshot แรกจาก server */
+  joined: boolean | null;
   nickname: string | null;
   score: PlayerScore;
   rank: number | null;
@@ -57,6 +59,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [game, setGame] = useState<GameState | null>(null);
+  const [joined, setJoined] = useState<boolean | null>(null);
   const [nickname, setNickname] = useState<string | null>(null);
   const [score, setScore] = useState<PlayerScore>(emptyScore);
   const [rank, setRank] = useState<number | null>(null);
@@ -83,6 +86,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
     switch (event.t) {
       case "state":
         setGame(event.game);
+        setJoined(Boolean(event.me));
         if (event.me) {
           setNickname(event.me.nickname);
           setRank(event.me.rank);
@@ -245,6 +249,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       connected,
       reconnecting,
       game,
+      joined,
       nickname,
       score,
       rank,
@@ -260,6 +265,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       connected,
       reconnecting,
       game,
+      joined,
       nickname,
       score,
       rank,

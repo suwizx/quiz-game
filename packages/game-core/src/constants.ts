@@ -21,3 +21,6 @@ export const MAX_RESPONSE_MS = 60_000;
 
 /** จำนวนตัวเลือกต่อคำถาม */
 export const CHOICE_COUNT = 4;
+
+/** ชื่อที่แสดงบนกระดาน — ยาวสุดในรายชื่อคือ "รหัส + ชื่อเต็ม" 37 ตัวอักษร */
+export const NICKNAME_MAX_LENGTH = 60;

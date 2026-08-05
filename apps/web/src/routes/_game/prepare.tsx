@@ -1,8 +1,10 @@
+import { NICKNAME_MAX_LENGTH } from "@singpore-game/game-core";
 import { Button } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
 import { Label } from "@singpore-game/ui/components/label";
+import { cn } from "@singpore-game/ui/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Loader2, Users } from "lucide-react";
+import { Check, CircleAlert, Loader2, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,20 +18,24 @@ export const Route = createFileRoute("/_game/prepare")({
 
 function PreparePage() {
   const initial = Route.useLoaderData();
-  const { game, nickname: socketNickname } = useGameSocket();
+  const { game, joined: socketJoined, nickname: socketNickname } = useGameSocket();
 
   const [nickname, setNickname] = useState(initial.nickname);
-  const [joined, setJoined] = useState(initial.joined);
   const [saving, setSaving] = useState(false);
+  // จำว่าเข้าร่วม "รอบไหน" ไม่ใช่แค่ true/false — admin เปิดรอบใหม่แล้วต้องกลับไปเป็นยังไม่เข้าร่วม
+  const [joinedGameId, setJoinedGameId] = useState(initial.joined ? initial.game.id : null);
 
   // ชื่อจาก server ชนะเสมอเมื่อ reconnect กลับมา (เช่นเปลี่ยนชื่อจากอีกแท็บ)
   useEffect(() => {
     if (socketNickname) setNickname(socketNickname);
   }, [socketNickname]);
 
+  const gameId = game?.id ?? initial.game.id;
   const playerCount = game?.playerCount ?? initial.game.playerCount;
   const durationSec = game?.durationSec ?? initial.game.durationSec;
   const startsAt = game?.status === "countdown" ? game.startsAt : null;
+  // ผลจาก socket คือความจริง ส่วน local flag กันสถานะกระพริบระหว่างรอ snapshot หลังกดเข้าร่วม
+  const joined = joinedGameId === gameId || socketJoined === true;
 
   const save = async () => {
     const trimmed = nickname.trim();
@@ -42,7 +48,7 @@ function PreparePage() {
     try {
       const result = await api.join(trimmed);
       setNickname(result.nickname);
-      setJoined(true);
+      setJoinedGameId(gameId);
       toast.success("พร้อมเล่นแล้ว");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ");
@@ -63,13 +69,36 @@ function PreparePage() {
           </p>
         </div>
 
+        <div
+          className={cn(
+            "flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm",
+            joined
+              ? "border-primary/40 bg-primary/10 text-primary"
+              : "border-destructive/40 bg-destructive/10 text-destructive",
+          )}
+        >
+          {joined ? (
+            <Check className="mt-0.5 size-4 shrink-0" />
+          ) : (
+            <CircleAlert className="mt-0.5 size-4 shrink-0" />
+          )}
+          <div className="space-y-0.5">
+            <p className="font-medium">{joined ? "เข้าร่วมแล้ว" : "ยังไม่ได้เข้าร่วม"}</p>
+            <p className="text-xs opacity-80">
+              {joined
+                ? `อยู่ในรอบนี้ในชื่อ "${socketNickname ?? nickname}" · รอสัญญาณเริ่มเกม อย่าปิดหน้านี้`
+                : 'กด "เข้าร่วม" ก่อน ไม่งั้นจะไม่ได้เล่นรอบนี้'}
+            </p>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="nickname">ชื่อที่จะแสดงบนกระดาน</Label>
           <div className="flex gap-2">
             <Input
               id="nickname"
               value={nickname}
-              maxLength={40}
+              maxLength={NICKNAME_MAX_LENGTH}
               onChange={(event) => setNickname(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && void save()}
               placeholder="ชื่อของคุณ"
@@ -85,7 +114,7 @@ function PreparePage() {
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            ค่าเริ่มต้นมาจากรายชื่อนักศึกษา แก้ไขได้ตามต้องการ
+            ค่าเริ่มต้นคือ &quot;รหัสนักศึกษา ชื่อ-นามสกุล&quot; จากรายชื่อ แก้ไขได้ตามต้องการ
           </p>
         </div>
 
@@ -94,16 +123,6 @@ function PreparePage() {
           <span className="font-medium tabular-nums">{playerCount}</span>
           <span className="text-muted-foreground">คนพร้อมแล้ว</span>
         </div>
-
-        {joined ? (
-          <p className="text-center text-muted-foreground text-sm">
-            รอสัญญาณเริ่มเกม… อย่าปิดหน้านี้
-          </p>
-        ) : (
-          <p className="text-center text-destructive text-sm">
-            กด &quot;เข้าร่วม&quot; ก่อน ไม่งั้นจะไม่ได้เล่น
-          </p>
-        )}
       </div>
     </div>
   );
