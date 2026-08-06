@@ -1,4 +1,4 @@
-import { STREAK_BAR_MAX, type QuestionView } from "@singpore-game/game-core";
+import { CHOICE_LABELS, STREAK_BAR_MAX, type QuestionView } from "@singpore-game/game-core";
 import { Button } from "@singpore-game/ui/components/button";
 import { StreakPipe } from "@singpore-game/ui/components/streak-pipe";
 import { cn } from "@singpore-game/ui/lib/utils";
@@ -12,7 +12,6 @@ export const Route = createFileRoute("/_game/play")({
   component: PlayPage,
 });
 
-const CHOICE_LABELS = ["ก", "ข", "ค", "ง"];
 /** โชว์ผลถูก/ผิดสั้น ๆ ก่อนสไลด์ไปข้อถัดไป */
 const FEEDBACK_MS = 350;
 /** ตอบไปแล้วแต่ผลไม่กลับมาสักที (แพ็กเก็ตหาย) — ปลดล็อกให้กดใหม่ได้ */

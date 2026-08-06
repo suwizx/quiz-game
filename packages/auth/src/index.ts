@@ -24,7 +24,15 @@ export function createAuth() {
 
       schema: schema,
     }),
-    trustedOrigins: [env.CORS_ORIGIN],
+    // accounts.google.com ต้องอยู่ในนี้เพราะขากลับจาก OAuth บางจังหวะ Google
+    // ยิงมาพร้อม Origin ของตัวเอง แล้วโดน origin check ตีตกก่อนถึง callback
+    trustedOrigins: [env.CORS_ORIGIN, "https://accounts.google.com"],
+    /**
+     * ปิด rate limit — ทั้งห้องล็อกอินพร้อมกันตอนเริ่มเกม
+     * และเราอยู่หลัง Cloudflare Tunnel + nginx ที่แยก IP รายคนไม่ได้
+     * ทุกคนจึงใช้ถังเดียวกัน คนที่กดทีหลังจะโดนบล็อกทั้งที่ยังไม่ได้ลองเลย
+     */
+    rateLimit: { enabled: false },
     // ปกติปิด — เปิดได้เฉพาะตอน dev ผ่าน DEV_LOGIN เพื่อทดสอบก่อน Google พร้อม
     emailAndPassword: {
       enabled: isDevLoginEnabled,

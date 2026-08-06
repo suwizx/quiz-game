@@ -5,7 +5,8 @@ import { Input } from "@singpore-game/ui/components/input";
 import { Label } from "@singpore-game/ui/components/label";
 import { Textarea } from "@singpore-game/ui/components/textarea";
 import { cn } from "@singpore-game/ui/lib/utils";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Check, Loader2, Plus, Presentation, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -52,10 +53,16 @@ export function QuestionsTab() {
           ใช้งานอยู่ {questions.filter((question) => question.isActive).length} จาก{" "}
           {questions.length} ข้อ
         </p>
-        <Button size="sm" variant="outline" onClick={() => setCreating((value) => !value)}>
-          <Plus className="size-3.5" />
-          เพิ่มคำถาม
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" render={<Link to="/slides" />}>
+            <Presentation className="size-3.5" />
+            สไลด์เฉลย
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setCreating((value) => !value)}>
+            <Plus className="size-3.5" />
+            เพิ่มคำถาม
+          </Button>
+        </div>
       </div>
 
       {creating && (
