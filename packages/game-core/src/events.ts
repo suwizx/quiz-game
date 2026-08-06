@@ -11,6 +11,11 @@ export interface GameState {
   endsAt: number | null;
   /** คนที่กดเข้าร่วมรอบนี้แล้ว (นับจาก participant ใน db) */
   playerCount: number;
+  /**
+   * ไม่มีคำถามที่เปิดใช้งานเลยสักข้อ — client ใช้แยก "รอผู้ดูแลเพิ่มคำถาม"
+   * ออกจาก "กำลังโหลด" ไม่งั้นผู้เล่นจะเห็นข้อความโหลดค้างโดยไม่รู้สาเหตุ
+   */
+  questionPoolEmpty: boolean;
 }
 
 /** คำถามที่ส่งให้ client — ไม่มี correctIndex เด็ดขาด */
@@ -25,6 +30,8 @@ export interface QuestionView {
 }
 
 export interface PlayerState extends PlayerScore {
+  /** ใช้จับคู่แถวของตัวเองบนกระดาน — ชื่อเล่นซ้ำกันได้จึงใช้แทนกันไม่ได้ */
+  participantId: string;
   nickname: string;
   rank: number;
   question: QuestionView | null;
@@ -42,7 +49,6 @@ export interface ScoreRow {
   totalAnswerMs: number;
   /** เวลาที่ใช้จนตอบครบทุกข้อ (ms นับจากเกมเริ่ม) — null คือยังเล่นไม่จบ */
   finishedMs: number | null;
-  isMe?: boolean;
 }
 
 export interface LobbyPlayer {

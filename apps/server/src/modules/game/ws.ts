@@ -50,9 +50,13 @@ export const gameSocket = new Elysia().ws("/ws/game", {
     if (!isClientEvent(raw)) return;
     const event = raw as ClientEvent;
 
-    if (event.t === "pong" || event.t === "hello") {
+    // ตอบ heartbeat เฉย ๆ ไม่ต้องทำอะไร — เดิมสร้าง snapshot ทั้งก้อน
+    // (ซึ่ง serveQuestion ข้างในเขียน db ได้ด้วย) ทุก 25 วิต่อคนแล้วโยนทิ้ง
+    if (event.t === "pong") return;
+
+    if (event.t === "hello") {
       const state = await hub.buildStateFor(session.userId);
-      if (event.t === "hello" && state) ws.send(state);
+      if (state) ws.send(state);
       return;
     }
 

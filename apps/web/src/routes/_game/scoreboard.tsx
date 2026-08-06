@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_game/scoreboard")({
 });
 
 function ScoreboardPage() {
-  const { scoreboard, nickname, game, rank, finishedMs } = useGameSocket();
+  const { scoreboard, myParticipantId, game, rank, finishedMs } = useGameSocket();
   const live = game?.status !== "ended";
   const finished = finishedMs !== null;
 
@@ -46,7 +46,7 @@ function ScoreboardPage() {
           </div>
         )}
 
-        <ScoreboardTable rows={scoreboard} highlight={nickname} live={live} />
+        <ScoreboardTable rows={scoreboard} highlightId={myParticipantId} live={live} />
       </div>
     </div>
   );

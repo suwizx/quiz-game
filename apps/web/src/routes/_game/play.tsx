@@ -29,8 +29,18 @@ interface Pending {
 }
 
 function PlayPage() {
-  const { question, score, rank, remainingMs, lastResult, answer, notices, dismissNotice, finishedMs } =
-    useGameSocket();
+  const {
+    game,
+    question,
+    score,
+    rank,
+    remainingMs,
+    lastResult,
+    answer,
+    notices,
+    dismissNotice,
+    finishedMs,
+  } = useGameSocket();
 
   const [pending, setPending] = useState<Pending | null>(null);
 
@@ -115,8 +125,13 @@ function PlayPage() {
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-center text-muted-foreground text-sm">
-              {/* จบแล้วจะถูกพาไปหน้ากระดานคะแนนทันที ข้อความนี้เห็นแค่แวบเดียว */}
-              {finishedMs !== null ? "ตอบครบทุกข้อแล้ว…" : "กำลังโหลดคำถาม…"}
+              {/* จบแล้วจะถูกพาไปหน้ากระดานคะแนนทันที ข้อความนี้เห็นแค่แวบเดียว
+                  ส่วนพูลว่างคือ admin ปิด/ลบคำถามหมด ต้องบอกให้รู้ว่ารออะไรอยู่ */}
+              {finishedMs !== null
+                ? "ตอบครบทุกข้อแล้ว…"
+                : game?.questionPoolEmpty
+                  ? "ยังไม่มีคำถามในระบบ รอผู้ดูแลเพิ่ม…"
+                  : "กำลังโหลดคำถาม…"}
             </div>
           )}
         </div>

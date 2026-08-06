@@ -11,14 +11,14 @@ export function formatDuration(ms: number) {
 
 interface ScoreboardTableProps {
   rows: ScoreRow[];
-  /** nickname ของเรา ใช้ไฮไลต์แถวตัวเอง */
-  highlight?: string | null;
+  /** participantId ของเรา ใช้ไฮไลต์แถวตัวเอง — ชื่อเล่นซ้ำกันได้จึงใช้แทนไม่ได้ */
+  highlightId?: string | null;
   /** เกมยังไม่จบ → คอลัมน์ท้ายคือเวลาที่จับอยู่ ไม่ใช่เวลาสรุป */
   live?: boolean;
   className?: string;
 }
 
-export function ScoreboardTable({ rows, highlight, live, className }: ScoreboardTableProps) {
+export function ScoreboardTable({ rows, highlightId, live, className }: ScoreboardTableProps) {
   if (rows.length === 0) {
     return (
       <p className={cn("py-10 text-center text-muted-foreground text-sm", className)}>
@@ -42,7 +42,7 @@ export function ScoreboardTable({ rows, highlight, live, className }: Scoreboard
         </thead>
         <tbody>
           {rows.map((row, index) => {
-            const isMe = highlight != null && row.nickname === highlight;
+            const isMe = highlightId != null && row.participantId === highlightId;
             return (
               <tr
                 key={row.participantId}

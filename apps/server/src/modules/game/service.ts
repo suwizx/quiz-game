@@ -2,6 +2,7 @@ import { type Db, createDb } from "@singpore-game/db";
 import { answer, game, participant, question, roster } from "@singpore-game/db/schema";
 import {
   DEFAULT_DURATION_SEC,
+  MAX_RESPONSE_MS,
   NICKNAME_MAX_LENGTH,
   type GameState,
   type LobbyPlayer,
@@ -43,10 +44,13 @@ export async function getOrCreateGame() {
 }
 
 export async function toGameState(row: typeof game.$inferSelect): Promise<GameState> {
-  const [counted] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(participant)
-    .where(eq(participant.gameId, row.id));
+  const [[counted], [questions]] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(participant)
+      .where(eq(participant.gameId, row.id)),
+    db.select({ count: sql<number>`count(*)::int` }).from(question).where(servable),
+  ]);
 
   return {
     id: row.id,
@@ -55,6 +59,7 @@ export async function toGameState(row: typeof game.$inferSelect): Promise<GameSt
     startsAt: row.startsAt?.getTime() ?? null,
     endsAt: row.endsAt?.getTime() ?? null,
     playerCount: counted?.count ?? 0,
+    questionPoolEmpty: (questions?.count ?? 0) === 0,
   };
 }
 
@@ -244,7 +249,19 @@ async function markFinished(tx: DbOrTx, row: Participant): Promise<Date> {
 async function advanceQuestion(tx: DbOrTx, row: Participant): Promise<QuestionView | null> {
   const ids = await activeQuestionIds();
   const picked = nextQuestion({ queue: row.queue, index: row.queueIndex }, ids);
-  if (!picked) {
+
+  // ไม่มีคำถามที่เปิดใช้งานเลยสักข้อ — เป็นเรื่องของ admin ไม่ใช่ผู้เล่นเล่นครบ
+  // ห้ามตี finishedAt เพราะย้อนกลับไม่ได้ (ลบข้อสุดท้ายทีเดียวจะจบเกมให้ทุกคนถาวร)
+  // แค่ปล่อยข้อที่ค้างอยู่ทิ้ง แล้วรอจนกว่าจะมีคำถามกลับมา
+  if (picked.status === "empty") {
+    await tx
+      .update(participant)
+      .set({ currentQuestionId: null, currentServedAt: null })
+      .where(eq(participant.id, row.id));
+    return null;
+  }
+
+  if (picked.status === "exhausted") {
     await markFinished(tx, row);
     return null;
   }
@@ -302,6 +319,13 @@ export async function submitAnswer(input: {
       return { ok: false, reason: "not_running" } as const;
     }
 
+    // สถานะพลิกเป็น ended ตอน tick รอบถัดไป ไม่ใช่วินาทีที่หมดเวลาพอดี
+    // ถ้าไม่เทียบนาฬิกาตรงนี้ คำตอบหลังหมดเวลาจะยังถูกนับได้อีกราวหนึ่งวินาที
+    const endsAt = currentGame.endsAt?.getTime();
+    if (endsAt !== undefined && Date.now() > endsAt) {
+      return { ok: false, reason: "not_running" } as const;
+    }
+
     if (!row.currentQuestionId || row.currentQuestionId !== input.questionId) {
       return { ok: false, reason: "stale" } as const;
     }
@@ -315,7 +339,9 @@ export async function submitAnswer(input: {
     if (!current.isActive || current.deletedAt) return { ok: false, reason: "stale" } as const;
 
     const isCorrect = current.correctIndex === input.choiceIndex;
-    const responseMs = Date.now() - (row.currentServedAt?.getTime() ?? Date.now());
+    // clamp ครั้งเดียวแล้วใช้ทั้งสองที่ ไม่งั้นสถิติรายข้อกับตัวตัดสินอันดับเป็นคนละค่ากัน
+    const elapsedMs = Date.now() - (row.currentServedAt?.getTime() ?? Date.now());
+    const responseMs = Math.min(Math.max(elapsedMs, 0), MAX_RESPONSE_MS);
     const score = applyAnswer(row, isCorrect, responseMs);
 
     await tx.insert(answer).values({
@@ -324,7 +350,7 @@ export async function submitAnswer(input: {
       questionId: current.id,
       choiceIndex: input.choiceIndex,
       isCorrect,
-      responseMs: Math.max(0, Math.min(responseMs, 2_147_483_647)),
+      responseMs,
       streakAfter: score.currentStreak,
     });
 

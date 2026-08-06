@@ -44,6 +44,8 @@ interface GameSocketValue {
   /** ตอบครบทุกข้อแล้ว — เวลาที่ใช้ (ms) null คือยังเล่นอยู่ */
   finishedMs: number | null;
   nickname: string | null;
+  /** participant ของเราในรอบนี้ ใช้ไฮไลต์แถวตัวเองบนกระดาน (ชื่อเล่นซ้ำกันได้) */
+  myParticipantId: string | null;
   score: PlayerScore;
   rank: number | null;
   question: QuestionView | null;
@@ -67,6 +69,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
   const [joined, setJoined] = useState<boolean | null>(null);
   const [finishedMs, setFinishedMs] = useState<number | null>(null);
   const [nickname, setNickname] = useState<string | null>(null);
+  const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
   const [score, setScore] = useState<PlayerScore>(emptyScore);
   const [rank, setRank] = useState<number | null>(null);
   const [question, setQuestion] = useState<QuestionView | null>(null);
@@ -94,8 +97,18 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
         setGame(event.game);
         setOnlineCount(event.onlineCount);
         setJoined(Boolean(event.me));
+        // คิดเวลาที่เหลือจาก endsAt ได้เลย ไม่ต้องรอ tick แรก ไม่งั้นนาฬิกากะพริบ 0:00
+        // และหน้าเตรียมตัวของคนที่ยังไม่เข้าร่วมจะไม่รู้ว่าเหลือเวลาเท่าไหร่
+        setRemainingMs(
+          event.game.status === "running" && event.game.endsAt !== null
+            ? Math.max(0, event.game.endsAt - Date.now())
+            : event.game.status === "ended"
+              ? 0
+              : null,
+        );
         if (event.me) {
           setNickname(event.me.nickname);
+          setMyParticipantId(event.me.participantId);
           setRank(event.me.rank);
           setQuestion(event.me.question);
           setFinishedMs(event.me.finishedMs);
@@ -108,11 +121,11 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
           });
         } else {
           // ยังไม่ได้อยู่ในเกมนี้ (เช่น admin เพิ่งเปิดรอบใหม่) — ล้างของรอบก่อนทิ้ง
+          setMyParticipantId(null);
           setRank(null);
           setQuestion(null);
           setScore(emptyScore());
           setLastResult(null);
-          setRemainingMs(null);
           setFinishedMs(null);
         }
         break;
@@ -264,6 +277,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       joined,
       finishedMs,
       nickname,
+      myParticipantId,
       score,
       rank,
       question,
@@ -282,6 +296,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       joined,
       finishedMs,
       nickname,
+      myParticipantId,
       score,
       rank,
       question,

@@ -132,8 +132,9 @@ export const answer = pgTable(
     streakAfter: integer("streak_after").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  // ไม่ทำ unique (participant, question) เพราะคำถามวนซ้ำได้เมื่อเล่นครบพูล
-  // การกันตอบซ้ำใช้การเทียบกับ participant.currentQuestionId ใน transaction แทน
+  // การกันตอบซ้ำใช้การเทียบกับ participant.currentQuestionId ใน transaction
+  // ไม่ใช่ unique (participant, question) เพราะ constraint จะเป็นด่านสุดท้ายที่ทำให้
+  // insert ระเบิดกลางทาง แทนที่จะถูกปฏิเสธอย่างสุภาพว่า "stale" ตั้งแต่ต้น
   (table) => [
     index("answer_question_idx").on(table.questionId),
     index("answer_participant_idx").on(table.participantId),

@@ -2,8 +2,12 @@ import {
   COUNTDOWN_MS,
   HEARTBEAT_INTERVAL_MS,
   TICK_INTERVAL_MS,
+  type GameState,
+  type GameStatus,
+  type QuestionView,
   type ScoreRow,
   type ServerEvent,
+  computeOvertakes,
 } from "@singpore-game/game-core";
 
 import * as service from "./service";
@@ -15,6 +19,8 @@ export interface Connection {
   isAdmin: boolean;
   send: (event: ServerEvent) => void;
 }
+
+type Participant = NonNullable<Awaited<ReturnType<typeof service.getParticipant>>>;
 
 const connections = new Map<string, Connection>();
 /** อันดับล่าสุดของแต่ละ participant ไว้ตรวจว่าใครแซงใคร */
@@ -41,7 +47,11 @@ export function connectionCount() {
  * คนเดียวเปิดหลายแท็บ (หรือมือถือ+โน้ตบุ๊ก) ต้องนับเป็นหนึ่ง
  */
 export function onlineCount() {
-  return new Set([...connections.values()].map((connection) => connection.userId)).size;
+  return connectedUserIds().length;
+}
+
+function connectedUserIds() {
+  return [...new Set([...connections.values()].map((connection) => connection.userId))];
 }
 
 export function broadcast(event: ServerEvent) {
@@ -73,20 +83,19 @@ function toClientRows(rows: service.ScoreboardRow[]): ScoreRow[] {
   return rows.map(({ userId: _userId, studentId: _studentId, ...row }) => row);
 }
 
+/** อันดับของแต่ละคนจากกระดานที่เรียงมาแล้ว (1 = ที่หนึ่ง) */
+function toRankMap(rows: service.ScoreboardRow[]) {
+  return new Map(rows.map((row, index) => [row.participantId, index + 1] as const));
+}
+
 /**
- * ส่งกระดานคะแนนให้ทุกคน และ (เฉพาะตอนเกมกำลังเล่น) หาว่าใครเพิ่งถูกแซง/แซงคนอื่น
- * เทียบเฉพาะคู่ที่สลับตำแหน่งกันจริง ๆ และส่งได้สูงสุด 1 event ต่อคนต่อรอบ
+ * ส่งกระดานคะแนนให้ทุกคน และ (เฉพาะตอนเกมกำลังเล่น) แจ้งว่าใครแซงใคร
+ * ตัวตัดสินการแซงอยู่ใน game-core — ที่นี่แค่แปลง participantId เป็นชื่อ
  */
 async function pushScoreboard(gameId: string, notifyOvertake = false) {
   const rows = await service.getScoreboard(gameId);
   const clientRows = toClientRows(rows);
-
-  const ranks = new Map<string, number>();
-  const nicknames = new Map<string, string>();
-  rows.forEach((row, index) => {
-    ranks.set(row.participantId, index + 1);
-    nicknames.set(row.participantId, row.nickname);
-  });
+  const ranks = toRankMap(rows);
 
   for (const connection of connections.values()) {
     const mine = rows.find((row) => row.userId === connection.userId);
@@ -97,6 +106,10 @@ async function pushScoreboard(gameId: string, notifyOvertake = false) {
     });
   }
 
+  // มีแต่ tick ตอนเกมกำลังเล่นที่แตะ state ของอันดับก่อนหน้า ผู้เรียกอื่น
+  // (lobby, admin) จะได้ไม่แย่งเขียนจนการเทียบอันดับเพี้ยน
+  if (!notifyOvertake) return;
+
   // ข้ามรอบแล้ว — อันดับของรอบก่อนใช้เทียบไม่ได้
   if (previousGameId !== gameId) {
     previousRanks = new Map();
@@ -104,31 +117,24 @@ async function pushScoreboard(gameId: string, notifyOvertake = false) {
     previousGameId = gameId;
   }
 
-  if (notifyOvertake && previousRanks.size > 0) {
-    for (const row of rows) {
-      const before = previousRanks.get(row.participantId);
-      const after = ranks.get(row.participantId);
-      if (before === undefined || after === undefined || before === after) continue;
+  if (previousRanks.size > 0) {
+    const byId = new Map(rows.map((row) => [row.participantId, row] as const));
 
-      // หาคู่ที่สลับกับเราจริง ๆ: คนที่ตอนนี้อยู่ตำแหน่งที่เราเคยอยู่
-      const counterpart = rows.find((other) => ranks.get(other.participantId) === before);
-      if (!counterpart || counterpart.participantId === row.participantId) continue;
+    for (const [participantId, overtake] of computeOvertakes(previousRanks, ranks)) {
+      const me = byId.get(participantId);
+      if (!me) continue;
 
-      const counterpartName =
-        nicknames.get(counterpart.participantId) ??
-        previousNicknames.get(counterpart.participantId) ??
+      const nickname =
+        byId.get(overtake.counterpartId)?.nickname ??
+        previousNicknames.get(overtake.counterpartId) ??
         "ผู้เล่นคนอื่น";
 
-      sendToUser(row.userId, {
-        t: "overtake",
-        kind: after < before ? "passed" : "passed_by",
-        nickname: counterpartName,
-      });
+      sendToUser(me.userId, { t: "overtake", kind: overtake.kind, nickname });
     }
   }
 
   previousRanks = ranks;
-  previousNicknames = nicknames;
+  previousNicknames = new Map(rows.map((row) => [row.participantId, row.nickname] as const));
 }
 
 export async function pushScoreboardNow() {
@@ -148,24 +154,31 @@ export async function startGame(gameId: string) {
 }
 
 /**
- * snapshot เต็มก้อนเดียวสำหรับผู้ใช้หนึ่งคน — client ใช้กู้สถานะทั้งหมด
- * หลัง refresh หรือเน็ตหลุด โดยไม่ต้องจำอะไรไว้เองเลย
+ * งานที่ต้อง "เขียน" db ของผู้เล่นหนึ่งคน — serveQuestion อาจเสิร์ฟข้อใหม่
+ * หรือตี finishedAt ให้คนที่เล่นครบ
+ *
+ * ⚠️ ต้องรันส่วนนี้ให้ครบทุกคนก่อนอ่านกระดานคะแนนเสมอ ไม่งั้นคนที่เพิ่งเล่นครบพอดี
+ * จะได้ finishedMs = null แล้วค้างอยู่หน้า "กำลังโหลดคำถาม" เพราะไม่รู้ว่าตัวเองจบแล้ว
  */
-export async function buildStateFor(userId: string): Promise<ServerEvent | null> {
-  const current = await service.getCurrentGame();
-  if (!current) return null;
-
-  const state = await service.toGameState(current);
-  const me = await service.getParticipant(current.id, userId);
-  if (!me) return { t: "state", game: state, me: null, onlineCount: onlineCount() };
+async function serveFor(gameId: string, status: GameStatus, userId: string) {
+  const me = await service.getParticipant(gameId, userId);
+  if (!me) return { me: null, question: null };
 
   // ส่งคำถามให้เฉพาะตอนเกมกำลังเล่นอยู่ — ยังไม่เริ่ม/จบแล้วไม่ต้องมีข้อค้าง
-  const question = current.status === "running" ? await service.serveQuestion(me.id) : null;
+  const question = status === "running" ? await service.serveQuestion(me.id) : null;
+  return { me, question };
+}
 
-  // ต้องอ่านกระดานหลัง serveQuestion เพราะถ้า pool หมดพอดี serveQuestion คือคนที่
-  // เพิ่งเขียน finishedAt ลงไป อ่านก่อนจะได้ finishedMs = null ทั้งที่ไม่มีข้อให้ตอบแล้ว
-  // แล้ว client ค้างอยู่หน้า "กำลังโหลดคำถาม" เพราะไม่รู้ว่าตัวเองจบแล้ว
-  const rows = await service.getScoreboard(current.id);
+/** ประกอบ snapshot ของผู้ใช้คนเดียวจากข้อมูลที่โหลดมาแล้ว — ไม่แตะ db */
+function toStateEvent(input: {
+  state: GameState;
+  rows: service.ScoreboardRow[];
+  me: Participant | null;
+  question: QuestionView | null;
+}): ServerEvent {
+  const { state, rows, me, question } = input;
+  if (!me) return { t: "state", game: state, me: null, onlineCount: onlineCount() };
+
   const rank = rows.findIndex((row) => row.participantId === me.id) + 1;
   const mine = rows.find((row) => row.participantId === me.id);
 
@@ -174,6 +187,7 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
     game: state,
     onlineCount: onlineCount(),
     me: {
+      participantId: me.id,
       nickname: me.nickname,
       rank: rank || rows.length + 1,
       currentStreak: me.currentStreak,
@@ -187,6 +201,22 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
   };
 }
 
+/**
+ * snapshot เต็มก้อนเดียวสำหรับผู้ใช้หนึ่งคน — client ใช้กู้สถานะทั้งหมด
+ * หลัง refresh หรือเน็ตหลุด โดยไม่ต้องจำอะไรไว้เองเลย
+ */
+export async function buildStateFor(userId: string): Promise<ServerEvent | null> {
+  const current = await service.getCurrentGame();
+  if (!current) return null;
+
+  const state = await service.toGameState(current);
+  const served = await serveFor(current.id, current.status, userId);
+  // ไม่ได้อยู่ในรอบนี้ก็ไม่ต้องอ่านกระดาน (เช่น admin ที่ไม่ได้ลงเล่น)
+  const rows = served.me ? await service.getScoreboard(current.id) : [];
+
+  return toStateEvent({ state, rows, ...served });
+}
+
 /** ส่ง snapshot ให้ผู้ใช้คนเดียว — ใช้ตอนสถานะของเขาเปลี่ยนคนเดียว เช่นเพิ่งกดเข้าร่วม */
 export async function pushStateTo(userId: string) {
   const event = await buildStateFor(userId);
@@ -194,9 +224,28 @@ export async function pushStateTo(userId: string) {
 }
 
 export async function broadcastState() {
-  for (const connection of connections.values()) {
-    const event = await buildStateFor(connection.userId);
-    if (event) connection.send(event);
+  const userIds = connectedUserIds();
+  if (userIds.length === 0) return;
+
+  const current = await service.getCurrentGame();
+  if (!current) return;
+
+  const state = await service.toGameState(current);
+
+  // เฟส 1: งานที่เขียน db ต้องเสร็จให้ครบทุกคนก่อน (ดูคำเตือนใน serveFor)
+  // นับ userId ไม่ซ้ำด้วย — คนเดียวเปิดสามแท็บไม่ต้องยิง query สามชุด
+  const served = new Map<string, Awaited<ReturnType<typeof serveFor>>>();
+  for (const userId of userIds) {
+    served.set(userId, await serveFor(current.id, current.status, userId));
+  }
+
+  // เฟส 2: อ่านกระดานครั้งเดียว (เดิมอ่านใหม่ทุก connection = สแกนตารางซ้ำ ๆ)
+  const anyPlayer = [...served.values()].some((entry) => entry.me);
+  const rows = anyPlayer ? await service.getScoreboard(current.id) : [];
+
+  // เฟส 3: ประกอบแล้วส่งให้ทุกแท็บของแต่ละคน
+  for (const [userId, entry] of served) {
+    sendToUser(userId, toStateEvent({ state, rows, ...entry }));
   }
 }
 
@@ -217,8 +266,15 @@ export function startLoop() {
   if (loopStarted) return;
   loopStarted = true;
 
+  let ticking = false;
   setInterval(() => {
-    void tick();
+    // รอบก่อนยังไม่จบ — ข้ามรอบนี้ ไม่ใช่รันทับกันจนอันดับที่ใช้เทียบเพี้ยน
+    // หรือเผลอเรียก finishGame สองครั้ง
+    if (ticking) return;
+    ticking = true;
+    void tick().finally(() => {
+      ticking = false;
+    });
   }, TICK_INTERVAL_MS);
 
   setInterval(() => {
@@ -227,13 +283,13 @@ export function startLoop() {
 }
 
 async function tick() {
-  if (connections.size === 0) return;
-
   const current = await service.getCurrentGame();
   if (!current) return;
 
   const now = Date.now();
 
+  // เดินสถานะต่อแม้ไม่มีใครต่ออยู่ — ถ้าหลุดยกห้อง (tunnel ตาย) แล้วหยุดเดิน
+  // เกมจะค้างที่ countdown/running จนกว่าจะมีคนกลับมา
   if (current.status === "countdown" && current.startsAt && now >= current.startsAt.getTime()) {
     await service.markRunning(current.id);
     await broadcastState();
@@ -247,6 +303,8 @@ async function tick() {
       return;
     }
 
+    if (connections.size === 0) return;
+
     broadcast({
       t: "tick",
       remainingMs: endsAt - now,
@@ -256,6 +314,9 @@ async function tick() {
     await pushScoreboard(current.id, true);
     return;
   }
+
+  // ไม่มีใครฟังก็ไม่ต้อง broadcast ต่อ
+  if (connections.size === 0) return;
 
   if (current.status === "lobby" || current.status === "countdown") {
     await broadcastLobby(current.id);

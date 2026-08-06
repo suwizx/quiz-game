@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_game/summary")({
 });
 
 function SummaryPage() {
-  const { scoreboard, nickname, score, rank, finishedMs } = useGameSocket();
+  const { scoreboard, myParticipantId, score, rank, finishedMs } = useGameSocket();
   const podium = scoreboard[0];
 
   return (
@@ -41,7 +41,7 @@ function SummaryPage() {
       </div>
 
       <div className="min-h-0 overflow-y-auto px-3 py-2">
-        <ScoreboardTable rows={scoreboard} highlight={nickname} />
+        <ScoreboardTable rows={scoreboard} highlightId={myParticipantId} />
       </div>
 
       <div className="border-border border-t p-3">

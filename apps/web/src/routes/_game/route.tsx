@@ -31,21 +31,31 @@ const routeForStatus = {
 } as const;
 
 function GameShell() {
-  const { game, finishedMs, reconnecting, connected } = useGameSocket();
+  const { game, joined, finishedMs, reconnecting, connected } = useGameSocket();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
   useEffect(() => {
-    if (!game) return;
+    // joined เป็น null แปลว่ายังไม่ได้ snapshot แรก — ยังตัดสินใจไม่ได้
+    if (!game || joined === null) return;
 
     // ดูกระดานคะแนนระหว่างเกมได้ ไม่ต้องถูกดึงกลับหน้าเล่น
     if (pathname === "/scoreboard" && game.status !== "ended") return;
 
-    // ตอบครบทุกข้อแล้ว — ไม่มีอะไรให้ทำที่หน้าเล่นอีก ไปดูกระดานคะแนนแทน
     const target =
-      game.status === "running" && finishedMs !== null ? "/scoreboard" : routeForStatus[game.status];
+      game.status === "ended"
+        ? "/summary"
+        : !joined
+          ? // ยังไม่ได้กดเข้าร่วมรอบนี้ ต้องกลับไปหน้าเตรียมตัวก่อนแม้เกมจะเริ่มไปแล้ว
+            // (เดิมถูกส่งเข้า /play ที่ไม่มีคำถามให้ แล้วค้างอยู่หน้า "กำลังโหลด" ทั้งรอบ)
+            "/prepare"
+          : game.status === "running" && finishedMs !== null
+            ? // ตอบครบทุกข้อแล้ว — ไม่มีอะไรให้ทำที่หน้าเล่นอีก ไปดูกระดานคะแนนแทน
+              "/scoreboard"
+            : routeForStatus[game.status];
+
     if (pathname !== target) void navigate({ to: target, replace: true });
-  }, [game, finishedMs, pathname, navigate]);
+  }, [game, joined, finishedMs, pathname, navigate]);
 
   return (
     <div className="relative h-full">

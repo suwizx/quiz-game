@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import { MAX_RESPONSE_MS, STREAK_BAR_MAX } from "./constants";
-import { buildQueue, nextQuestion } from "./queue";
+import { computeOvertakes } from "./overtake";
+import { type QueuePosition, buildQueue, nextQuestion } from "./queue";
 import { accuracyPercent, applyAnswer, barFill, compareParticipants, emptyScore } from "./scoring";
 
 const answerMany = (results: boolean[], ms = 1000) =>
@@ -86,58 +87,62 @@ describe("accuracyPercent", () => {
 describe("queue", () => {
   const ids = Array.from({ length: 8 }, (_, i) => `q${i}`);
 
+  /** ขอข้อถัดไปแบบยืนยันว่าต้องได้ — ให้เทสต์ที่พังอ่านง่ายกว่าการ ! ทุกบรรทัด */
+  const take = (position: QueuePosition, questionIds: readonly string[]) => {
+    const result = nextQuestion(position, questionIds);
+    if (result.status !== "ok") throw new Error(`คาดว่าจะได้ข้อถัดไป แต่ได้ ${result.status}`);
+    return result;
+  };
+
+  /** เล่นรวดเดียวจนหมดคิว คืนลำดับข้อที่เจอกับตำแหน่งสุดท้าย */
+  const playThrough = (position: QueuePosition, questionIds: readonly string[]) => {
+    const seen: string[] = [];
+    let current = position;
+    for (let result = nextQuestion(current, questionIds); result.status === "ok"; ) {
+      seen.push(result.questionId);
+      current = result.next;
+      result = nextQuestion(current, questionIds);
+    }
+    return { seen, position: current };
+  };
+
   test("buildQueue คืนคำถามครบทุกข้อโดยไม่ซ้ำ", () => {
     const queue = buildQueue(ids);
     expect(queue).toHaveLength(ids.length);
     expect(new Set(queue).size).toBe(ids.length);
   });
 
-  test("เจอครบทุกข้อโดยไม่ซ้ำ แล้วคืน null (จบเกมของตัวเอง)", () => {
-    let position = { queue: buildQueue(ids), index: 0 };
-    const seen: string[] = [];
-
-    for (let i = 0; i < ids.length; i++) {
-      const result = nextQuestion(position, ids);
-      expect(result).not.toBeNull();
-      seen.push(result!.questionId);
-      position = result!.next;
-    }
+  test("เจอครบทุกข้อโดยไม่ซ้ำ แล้วคืน exhausted (จบเกมของตัวเอง)", () => {
+    const { seen, position } = playThrough({ queue: buildQueue(ids), index: 0 }, ids);
 
     expect(new Set(seen).size).toBe(ids.length);
     // ข้อถัดไปไม่มีแล้ว — ไม่วนกลับไปข้อเดิม
-    expect(nextQuestion(position, ids)).toBeNull();
-    expect(nextQuestion(position, ids)).toBeNull();
+    expect(nextQuestion(position, ids).status).toBe("exhausted");
+    expect(nextQuestion(position, ids).status).toBe("exhausted");
   });
 
   test("ข้อที่ admin เพิ่มระหว่างเกมถูกต่อท้ายคิวให้คนที่ join ไปแล้ว", () => {
-    let position = { queue: buildQueue(ids), index: 0 };
-    for (let i = 0; i < ids.length; i++) position = nextQuestion(position, ids)!.next;
-    expect(nextQuestion(position, ids)).toBeNull();
+    const { position } = playThrough({ queue: buildQueue(ids), index: 0 }, ids);
+    expect(nextQuestion(position, ids).status).toBe("exhausted");
 
     const withNew = [...ids, "q-new-1", "q-new-2"];
-    const first = nextQuestion(position, withNew);
-    expect(first).not.toBeNull();
-    position = first!.next;
-    const second = nextQuestion(position, withNew)!;
+    const first = take(position, withNew);
+    const second = take(first.next, withNew);
 
-    expect([first!.questionId, second.questionId].sort()).toEqual(["q-new-1", "q-new-2"]);
-    expect(nextQuestion(second.next, withNew)).toBeNull();
+    expect([first.questionId, second.questionId].sort()).toEqual(["q-new-1", "q-new-2"]);
+    expect(nextQuestion(second.next, withNew).status).toBe("exhausted");
   });
 
-  test("ไม่มีคำถามในระบบเลยคืน null", () => {
-    expect(nextQuestion({ queue: [], index: 0 }, [])).toBeNull();
+  test("ไม่มีคำถามในระบบเลยคืน empty ไม่ใช่ exhausted", () => {
+    // ต่างกันตรงที่ exhausted ทำให้ service ตี finishedAt ซึ่งย้อนกลับไม่ได้
+    // ส่วน empty แปลว่า admin ลบคำถามหมดชั่วคราว ผู้เล่นต้องรอได้ ไม่ใช่จบเกม
+    expect(nextQuestion({ queue: [], index: 0 }, []).status).toBe("empty");
+    expect(nextQuestion({ queue: [...ids], index: 0 }, []).status).toBe("empty");
   });
 
   test("ข้อที่ถูกลบระหว่างเกมถูกข้าม ไม่โผล่มาให้ตอบอีก", () => {
     const remaining = ids.filter((id) => id !== "q3" && id !== "q5");
-    let position = { queue: [...ids], index: 0 };
-    const seen: string[] = [];
-
-    for (let result = nextQuestion(position, remaining); result; ) {
-      seen.push(result.questionId);
-      position = result.next;
-      result = nextQuestion(position, remaining);
-    }
+    const { seen } = playThrough({ queue: [...ids], index: 0 }, remaining);
 
     expect(seen).not.toContain("q3");
     expect(seen).not.toContain("q5");
@@ -145,13 +150,70 @@ describe("queue", () => {
   });
 
   test("ลบจนเหลือข้อเดียว เจอข้อนั้นครั้งเดียวแล้วจบ", () => {
-    const position = { queue: [...ids], index: 0 };
-    const result = nextQuestion(position, ["q7"]);
-    expect(result?.questionId).toBe("q7");
-    expect(nextQuestion(result!.next, ["q7"])).toBeNull();
+    const result = take({ queue: [...ids], index: 0 }, ["q7"]);
+    expect(result.questionId).toBe("q7");
+    expect(nextQuestion(result.next, ["q7"]).status).toBe("exhausted");
   });
 
-  test("ลบคำถามหมดทุกข้อคืน null ไม่วนไม่รู้จบ", () => {
-    expect(nextQuestion({ queue: [...ids], index: 0 }, [])).toBeNull();
+  test("ข้อที่ปิดใช้งานตอนยังไม่เคยเจอ ถ้าเปิดกลับมาต้องได้เจอทีหลัง", () => {
+    const withoutQ3 = ids.filter((id) => id !== "q3");
+
+    // เล่นจนหมดคิวตอนที่ q3 ยังปิดอยู่ — q3 ต้องถูกถอดออกจากคิว ไม่ใช่แค่เดินข้าม
+    const { seen, position } = playThrough({ queue: [...ids], index: 0 }, withoutQ3);
+    expect(seen).not.toContain("q3");
+
+    // admin เปิด q3 กลับมา → ต้องถูกต่อท้ายคิวให้ ไม่ใช่ถูกนับว่าเคยเจอแล้ว
+    const result = take(position, ids);
+    expect(result.questionId).toBe("q3");
+    expect(nextQuestion(result.next, ids).status).toBe("exhausted");
+  });
+
+  test("ไม่แก้ไขคิวเดิมที่ผู้เรียกส่งเข้ามา", () => {
+    const queue = [...ids];
+    nextQuestion({ queue, index: 0 }, ["q7"]);
+    expect(queue).toEqual(ids);
+  });
+});
+
+describe("computeOvertakes", () => {
+  const ranks = (entries: Record<string, number>) => new Map(Object.entries(entries));
+
+  test("คนที่ถูกกระโดดข้ามได้ชื่อคนที่แซงจริง ไม่ใช่คนที่ตกลงมาด้วยกัน", () => {
+    // A=1 B=2 C=3 D=4 → C พุ่งขึ้นที่ 1 ดัน A กับ B ลงมาคนละอันดับ
+    const result = computeOvertakes(
+      ranks({ A: 1, B: 2, C: 3, D: 4 }),
+      ranks({ C: 1, A: 2, B: 3, D: 4 }),
+    );
+
+    expect(result.get("A")).toEqual({ kind: "passed_by", counterpartId: "C" });
+    // เดิมบั๊กตรงนี้ — B เคยได้ "A แซงคุณ" ทั้งที่ A ก็ร่วงเหมือนกัน
+    expect(result.get("B")).toEqual({ kind: "passed_by", counterpartId: "C" });
+    // แซงทั้ง A และ B แต่เล่าคนที่เคยอยู่สูงสุด
+    expect(result.get("C")).toEqual({ kind: "passed", counterpartId: "A" });
+    // อันดับไม่ขยับ ไม่ต้องแจ้งอะไร
+    expect(result.has("D")).toBe(false);
+  });
+
+  test("สลับกันสองคนได้ข้อความคนละด้าน", () => {
+    const result = computeOvertakes(ranks({ A: 1, B: 2 }), ranks({ B: 1, A: 2 }));
+
+    expect(result.get("A")).toEqual({ kind: "passed_by", counterpartId: "B" });
+    expect(result.get("B")).toEqual({ kind: "passed", counterpartId: "A" });
+  });
+
+  test("อันดับไม่เปลี่ยนเลย ไม่มีเหตุการณ์", () => {
+    const same = { A: 1, B: 2, C: 3 };
+    expect(computeOvertakes(ranks(same), ranks(same)).size).toBe(0);
+  });
+
+  test("คนที่เพิ่งเข้ามาไม่มีอันดับเก่า จึงไม่ถูกนับว่าแซงใคร", () => {
+    const result = computeOvertakes(ranks({ A: 1, B: 2 }), ranks({ A: 1, B: 2, C: 3 }));
+    expect(result.size).toBe(0);
+  });
+
+  test("ทุกคนเลื่อนขึ้นเพราะคนอันดับ 1 หายไป ไม่นับเป็นการแซง", () => {
+    // ไม่มีใครข้ามใคร ลำดับสัมพัทธ์เหมือนเดิมทุกคู่
+    const result = computeOvertakes(ranks({ A: 1, B: 2, C: 3 }), ranks({ B: 1, C: 2 }));
+    expect(result.size).toBe(0);
   });
 });

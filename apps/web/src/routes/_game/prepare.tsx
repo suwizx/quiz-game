@@ -8,6 +8,7 @@ import { Check, CircleAlert, Loader2, SlidersHorizontal, Wifi } from "lucide-rea
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { formatDuration } from "@/components/scoreboard-table";
 import { api } from "@/lib/api";
 import { useGameSocket } from "@/lib/game-socket";
 
@@ -21,6 +22,7 @@ function PreparePage() {
   const {
     game,
     connected,
+    remainingMs,
     onlineCount: socketOnlineCount,
     joined: socketJoined,
     nickname: socketNickname,
@@ -43,6 +45,8 @@ function PreparePage() {
   const startsAt = game?.status === "countdown" ? game.startsAt : null;
   // ผลจาก socket คือความจริง ส่วน local flag กันสถานะกระพริบระหว่างรอ snapshot หลังกดเข้าร่วม
   const joined = joinedGameId === gameId || socketJoined === true;
+  // มาสายก็ยังเข้าร่วมได้ — GameShell จะพาเข้าหน้าเล่นเองทันทีที่ join สำเร็จ
+  const inProgress = game?.status === "running";
 
   const save = async () => {
     const trimmed = nickname.trim();
@@ -56,7 +60,7 @@ function PreparePage() {
       const result = await api.join(trimmed);
       setNickname(result.nickname);
       setJoinedGameId(gameId);
-      toast.success("พร้อมเล่นแล้ว");
+      toast.success(inProgress ? "เข้าร่วมแล้ว เริ่มเล่นได้เลย" : "พร้อมเล่นแล้ว");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "บันทึกไม่สำเร็จ");
     } finally {
@@ -80,9 +84,13 @@ function PreparePage() {
 
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-1 text-center">
-          <h1 className="font-bold text-2xl tracking-tight">เตรียมตัว</h1>
+          <h1 className="font-bold text-2xl tracking-tight">
+            {inProgress ? "เกมเริ่มไปแล้ว" : "เตรียมตัว"}
+          </h1>
           <p className="text-muted-foreground text-sm">
-            รอผู้ดูแลกดเริ่มเกม · เล่น {Math.round(durationSec / 60)} นาที
+            {inProgress
+              ? `เข้าร่วมตอนนี้ยังทันเล่น · เหลือ ${remainingMs === null ? "—" : formatDuration(remainingMs)}`
+              : `รอผู้ดูแลกดเริ่มเกม · เล่น ${Math.round(durationSec / 60)} นาที`}
           </p>
         </div>
 
@@ -103,8 +111,10 @@ function PreparePage() {
             <p className="font-medium">{joined ? "เข้าร่วมแล้ว" : "ยังไม่ได้เข้าร่วม"}</p>
             <p className="text-xs opacity-80">
               {joined
-                ? `อยู่ในรอบนี้ในชื่อ "${socketNickname ?? nickname}" · รอสัญญาณเริ่มเกม อย่าปิดหน้านี้`
-                : 'กด "เข้าร่วม" ก่อน ไม่งั้นจะไม่ได้เล่นรอบนี้'}
+                ? `อยู่ในรอบนี้ในชื่อ "${socketNickname ?? nickname}" · ${inProgress ? "กำลังพาเข้าหน้าเล่น" : "รอสัญญาณเริ่มเกม อย่าปิดหน้านี้"}`
+                : inProgress
+                  ? 'กด "เข้าร่วมเลย" เพื่อเริ่มตอบทันที · เวลาจะเหลือน้อยกว่าคนที่เริ่มพร้อมกัน'
+                  : 'กด "เข้าร่วม" ก่อน ไม่งั้นจะไม่ได้เล่นรอบนี้'}
             </p>
           </div>
         </div>
@@ -127,7 +137,7 @@ function PreparePage() {
               ) : joined ? (
                 <Check className="size-4" />
               ) : null}
-              {joined ? "บันทึก" : "เข้าร่วม"}
+              {joined ? "บันทึก" : inProgress ? "เข้าร่วมเลย" : "เข้าร่วม"}
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
