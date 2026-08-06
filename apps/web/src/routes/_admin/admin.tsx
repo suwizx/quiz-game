@@ -3,7 +3,7 @@ import { Button } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@singpore-game/ui/components/tabs";
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Play, RotateCcw, Square } from "lucide-react";
+import { Check, Download, Play, RotateCcw, Square, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -47,7 +47,7 @@ function AdminPage() {
 }
 
 function PlayingTab() {
-  const { game, scoreboard, remainingMs } = useGameSocket();
+  const { game, scoreboard, remainingMs, onlineCount } = useGameSocket();
   const [minutes, setMinutes] = useState(5);
   const [busy, setBusy] = useState(false);
 
@@ -74,7 +74,22 @@ function PlayingTab() {
     <div className="space-y-4 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={status} />
-        <span className="text-muted-foreground text-xs">ผู้เล่น {game?.playerCount ?? 0} คน</span>
+
+        <span
+          className="flex items-center gap-1 text-muted-foreground text-xs tabular-nums"
+          title="คนที่เปิดเว็บค้างอยู่ตอนนี้ (นับคนไม่ซ้ำ ต่อให้เปิดหลายแท็บ)"
+        >
+          <Wifi className="size-3.5" />
+          {onlineCount ?? "—"} เปิดเว็บอยู่
+        </span>
+        <span
+          className="flex items-center gap-1 text-primary text-xs tabular-nums"
+          title="คนที่กดเข้าร่วมรอบนี้แล้ว"
+        >
+          <Check className="size-3.5" />
+          {game?.playerCount ?? 0} เข้าร่วมแล้ว
+        </span>
+
         {status === "running" && remainingMs !== null && (
           <span className="ml-auto font-medium text-sm tabular-nums">
             เหลือ {formatDuration(remainingMs)}

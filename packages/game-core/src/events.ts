@@ -60,7 +60,8 @@ export type ServerEvent =
       score: PlayerScore;
       next: QuestionView | null;
     }
-  | { t: "tick"; remainingMs: number; serverNow: number }
+  /** onlineCount มากับ tick ด้วย เพราะ lobby หยุดยิงตอนเกมเริ่มแล้ว */
+  | { t: "tick"; remainingMs: number; serverNow: number; onlineCount: number }
   | { t: "scoreboard"; rows: ScoreRow[]; myRank: number | null }
   | { t: "overtake"; kind: "passed" | "passed_by"; nickname: string }
   | { t: "ended" }

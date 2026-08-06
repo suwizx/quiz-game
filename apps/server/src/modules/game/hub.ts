@@ -242,7 +242,12 @@ async function tick() {
       return;
     }
 
-    broadcast({ t: "tick", remainingMs: endsAt - now, serverNow: now });
+    broadcast({
+      t: "tick",
+      remainingMs: endsAt - now,
+      serverNow: now,
+      onlineCount: onlineCount(),
+    });
     await pushScoreboard(current.id, true);
     return;
   }

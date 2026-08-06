@@ -134,6 +134,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
         break;
       case "tick":
         setRemainingMs(event.remainingMs);
+        setOnlineCount(event.onlineCount);
         break;
       case "scoreboard":
         setScoreboard(event.rows);
