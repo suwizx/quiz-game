@@ -37,6 +37,8 @@ interface GameSocketValue {
   /** เคยต่อติดแล้วหลุด — ใช้แยกจากการต่อครั้งแรกเพื่อไม่ขึ้นแบนเนอร์เตือนโดยไม่จำเป็น */
   reconnecting: boolean;
   game: GameState | null;
+  /** คนที่เปิดเว็บค้างอยู่ตอนนี้ (นับคนไม่ซ้ำ) — null คือยังไม่รู้ ยังไม่ได้ snapshot แรก */
+  onlineCount: number | null;
   /** อยู่ในเกมรอบปัจจุบันแล้วหรือยัง — null คือยังไม่ได้ snapshot แรกจาก server */
   joined: boolean | null;
   nickname: string | null;
@@ -59,6 +61,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [game, setGame] = useState<GameState | null>(null);
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [joined, setJoined] = useState<boolean | null>(null);
   const [nickname, setNickname] = useState<string | null>(null);
   const [score, setScore] = useState<PlayerScore>(emptyScore);
@@ -86,6 +89,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
     switch (event.t) {
       case "state":
         setGame(event.game);
+        setOnlineCount(event.onlineCount);
         setJoined(Boolean(event.me));
         if (event.me) {
           setNickname(event.me.nickname);
@@ -109,6 +113,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
         break;
       case "lobby":
         setGame((current) => (current ? { ...current, playerCount: event.playerCount } : current));
+        setOnlineCount(event.onlineCount);
         break;
       case "countdown":
         setGame((current) =>
@@ -249,6 +254,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       connected,
       reconnecting,
       game,
+      onlineCount,
       joined,
       nickname,
       score,
@@ -265,6 +271,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       connected,
       reconnecting,
       game,
+      onlineCount,
       joined,
       nickname,
       score,

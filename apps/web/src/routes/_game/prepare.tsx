@@ -4,8 +4,8 @@ import { Input } from "@singpore-game/ui/components/input";
 import { Label } from "@singpore-game/ui/components/label";
 import { cn } from "@singpore-game/ui/lib/utils";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, CircleAlert, Loader2, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, CircleAlert, Loader2, Wifi } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { api } from "@/lib/api";
@@ -18,7 +18,13 @@ export const Route = createFileRoute("/_game/prepare")({
 
 function PreparePage() {
   const initial = Route.useLoaderData();
-  const { game, joined: socketJoined, nickname: socketNickname } = useGameSocket();
+  const {
+    game,
+    connected,
+    onlineCount: socketOnlineCount,
+    joined: socketJoined,
+    nickname: socketNickname,
+  } = useGameSocket();
 
   const [nickname, setNickname] = useState(initial.nickname);
   const [saving, setSaving] = useState(false);
@@ -32,6 +38,7 @@ function PreparePage() {
 
   const gameId = game?.id ?? initial.game.id;
   const playerCount = game?.playerCount ?? initial.game.playerCount;
+  const onlineCount = socketOnlineCount ?? initial.onlineCount;
   const durationSec = game?.durationSec ?? initial.game.durationSec;
   const startsAt = game?.status === "countdown" ? game.startsAt : null;
   // ผลจาก socket คือความจริง ส่วน local flag กันสถานะกระพริบระหว่างรอ snapshot หลังกดเข้าร่วม
@@ -118,12 +125,56 @@ function PreparePage() {
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-2 rounded-md border border-border py-3 text-sm">
-          <Users className="size-4 text-muted-foreground" />
-          <span className="font-medium tabular-nums">{playerCount}</span>
-          <span className="text-muted-foreground">คนพร้อมแล้ว</span>
+        <div className="grid grid-cols-2 divide-x divide-border rounded-md border border-border">
+          <Stat
+            icon={<Wifi className="size-3.5" />}
+            label="เปิดเว็บอยู่"
+            value={onlineCount}
+            hint={connected ? undefined : "ขาดการเชื่อมต่อ"}
+          />
+          <Stat
+            icon={<Check className="size-3.5" />}
+            label="กดเข้าร่วมแล้ว"
+            value={playerCount}
+            highlight
+          />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** ตัวเลขหนึ่งช่องในแถบสรุป — "เปิดเว็บอยู่" กับ "กดเข้าร่วมแล้ว" */
+function Stat({
+  icon,
+  label,
+  value,
+  hint,
+  highlight,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: number;
+  hint?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center gap-0.5 py-3">
+      <span
+        className={cn(
+          "flex items-center gap-1.5 text-muted-foreground text-xs",
+          highlight && "text-primary",
+        )}
+      >
+        {icon}
+        {label}
+      </span>
+      <span
+        className={cn("font-semibold text-xl tabular-nums", hint && "text-muted-foreground/50")}
+      >
+        {value}
+      </span>
+      {hint && <span className="text-[10px] text-muted-foreground">{hint}</span>}
     </div>
   );
 }

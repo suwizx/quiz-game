@@ -9,6 +9,7 @@ export interface GameState {
   /** epoch ms — มีค่าเมื่อ status เป็น countdown ขึ้นไป */
   startsAt: number | null;
   endsAt: number | null;
+  /** คนที่กดเข้าร่วมรอบนี้แล้ว (นับจาก participant ใน db) */
   playerCount: number;
 }
 
@@ -47,8 +48,8 @@ export interface LobbyPlayer {
 
 export type ServerEvent =
   /** snapshot เต็มก้อนแรกหลังต่อ WS ได้ — ใช้กู้สถานะหลัง refresh/เน็ตหลุด */
-  | { t: "state"; game: GameState; me: PlayerState | null }
-  | { t: "lobby"; playerCount: number; players: LobbyPlayer[] }
+  | { t: "state"; game: GameState; me: PlayerState | null; onlineCount: number }
+  | { t: "lobby"; playerCount: number; onlineCount: number; players: LobbyPlayer[] }
   | { t: "countdown"; startsAt: number }
   | { t: "question"; question: QuestionView }
   | {

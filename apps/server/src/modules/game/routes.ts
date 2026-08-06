@@ -32,6 +32,8 @@ export const gameRoutes = new Elysia({ prefix: "/api/game" })
       game: await service.toGameState(current),
       nickname: existing?.nickname ?? (await service.suggestedNickname(user.studentId, user.name)),
       joined: !!existing,
+      // ค่าตั้งต้นก่อน WS ต่อติด จากนั้น event lobby จะอัปเดตให้ทุกวินาที
+      onlineCount: hub.onlineCount(),
       players: await service.listLobbyPlayers(current.id),
     };
   })

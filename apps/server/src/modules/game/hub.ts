@@ -36,6 +36,14 @@ export function connectionCount() {
   return connections.size;
 }
 
+/**
+ * จำนวน "คน" ที่เปิดเว็บค้างอยู่ — นับ userId ไม่ซ้ำ ไม่ใช่จำนวน socket
+ * คนเดียวเปิดหลายแท็บ (หรือมือถือ+โน้ตบุ๊ก) ต้องนับเป็นหนึ่ง
+ */
+export function onlineCount() {
+  return new Set([...connections.values()].map((connection) => connection.userId)).size;
+}
+
 export function broadcast(event: ServerEvent) {
   for (const connection of connections.values()) {
     connection.send(event);
@@ -52,7 +60,7 @@ export function sendToUser(userId: string, event: ServerEvent) {
 
 export async function broadcastLobby(gameId: string) {
   const players = await service.listLobbyPlayers(gameId);
-  broadcast({ t: "lobby", playerCount: players.length, players });
+  broadcast({ t: "lobby", playerCount: players.length, onlineCount: onlineCount(), players });
   // ตารางผู้เล่น (โดยเฉพาะหน้า admin) อ่านจาก scoreboard ไม่ใช่ lobby
   // ถ้าไม่ push ตรงนี้ คนที่เพิ่ง join ตอนรอเริ่มเกมจะไม่โผล่ในตารางเลย
   await pushScoreboard(gameId);
@@ -149,7 +157,7 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
 
   const state = await service.toGameState(current);
   const me = await service.getParticipant(current.id, userId);
-  if (!me) return { t: "state", game: state, me: null };
+  if (!me) return { t: "state", game: state, me: null, onlineCount: onlineCount() };
 
   const rows = await service.getScoreboard(current.id);
   const rank = rows.findIndex((row) => row.participantId === me.id) + 1;
@@ -160,6 +168,7 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
   return {
     t: "state",
     game: state,
+    onlineCount: onlineCount(),
     me: {
       nickname: me.nickname,
       rank: rank || rows.length + 1,
