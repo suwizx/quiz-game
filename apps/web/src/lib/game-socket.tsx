@@ -41,6 +41,8 @@ interface GameSocketValue {
   onlineCount: number | null;
   /** อยู่ในเกมรอบปัจจุบันแล้วหรือยัง — null คือยังไม่ได้ snapshot แรกจาก server */
   joined: boolean | null;
+  /** ตอบครบทุกข้อแล้ว — เวลาที่ใช้ (ms) null คือยังเล่นอยู่ */
+  finishedMs: number | null;
   nickname: string | null;
   score: PlayerScore;
   rank: number | null;
@@ -63,6 +65,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
   const [game, setGame] = useState<GameState | null>(null);
   const [onlineCount, setOnlineCount] = useState<number | null>(null);
   const [joined, setJoined] = useState<boolean | null>(null);
+  const [finishedMs, setFinishedMs] = useState<number | null>(null);
   const [nickname, setNickname] = useState<string | null>(null);
   const [score, setScore] = useState<PlayerScore>(emptyScore);
   const [rank, setRank] = useState<number | null>(null);
@@ -95,6 +98,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
           setNickname(event.me.nickname);
           setRank(event.me.rank);
           setQuestion(event.me.question);
+          setFinishedMs(event.me.finishedMs);
           setScore({
             currentStreak: event.me.currentStreak,
             bestStreak: event.me.bestStreak,
@@ -109,6 +113,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
           setScore(emptyScore());
           setLastResult(null);
           setRemainingMs(null);
+          setFinishedMs(null);
         }
         break;
       case "lobby":
@@ -257,6 +262,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       game,
       onlineCount,
       joined,
+      finishedMs,
       nickname,
       score,
       rank,
@@ -274,6 +280,7 @@ export function GameSocketProvider({ children }: { children: ReactNode }) {
       game,
       onlineCount,
       joined,
+      finishedMs,
       nickname,
       score,
       rank,

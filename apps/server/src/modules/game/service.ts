@@ -207,6 +207,8 @@ function toQuestionView(
 export async function serveQuestion(participantId: string): Promise<QuestionView | null> {
   const row = await db.query.participant.findFirst({ where: eq(participant.id, participantId) });
   if (!row) return null;
+  // จบไปแล้ว — ไม่ต้องแจกข้อใหม่แม้จะมีคำถามเพิ่มเข้ามาทีหลัง
+  if (row.finishedAt) return null;
 
   if (row.currentQuestionId && row.currentServedAt) {
     // ข้อที่ค้างอยู่อาจถูกลบ/ปิดใช้งานไปแล้วระหว่างที่ผู้เล่นกำลังดูอยู่ — ข้ามไปข้อใหม่
@@ -219,10 +221,33 @@ export async function serveQuestion(participantId: string): Promise<QuestionView
   return advanceQuestion(db, row);
 }
 
+/**
+ * ปิดเกมของผู้เล่นคนเดียว — เขียนเวลาครั้งแรกครั้งเดียว
+ * เงื่อนไข isNull กันเขียนทับตอนมีหลายแท็บยิงพร้อมกัน เวลาที่บันทึกจะได้ไม่ขยับ
+ */
+async function markFinished(tx: DbOrTx, row: Participant): Promise<Date> {
+  if (row.finishedAt) return row.finishedAt;
+
+  const [updated] = await tx
+    .update(participant)
+    .set({ finishedAt: new Date() })
+    .where(and(eq(participant.id, row.id), isNull(participant.finishedAt)))
+    .returning({ finishedAt: participant.finishedAt });
+
+  if (updated?.finishedAt) return updated.finishedAt;
+
+  // แพ้เกมชิงกัน — อ่านค่าที่อีกฝั่งเพิ่งเขียนมาใช้แทน
+  const current = await tx.query.participant.findFirst({ where: eq(participant.id, row.id) });
+  return current?.finishedAt ?? new Date();
+}
+
 async function advanceQuestion(tx: DbOrTx, row: Participant): Promise<QuestionView | null> {
   const ids = await activeQuestionIds();
   const picked = nextQuestion({ queue: row.queue, index: row.queueIndex }, ids);
-  if (!picked) return null;
+  if (!picked) {
+    await markFinished(tx, row);
+    return null;
+  }
 
   const current = await tx.query.question.findFirst({ where: eq(question.id, picked.questionId) });
   if (!current) return null;
@@ -245,8 +270,16 @@ async function advanceQuestion(tx: DbOrTx, row: Participant): Promise<QuestionVi
 }
 
 export type SubmitResult =
-  | { ok: false; reason: "not_found" | "stale" | "not_running" }
-  | { ok: true; correct: boolean; correctIndex: number; score: PlayerScore; next: QuestionView | null };
+  | { ok: false; reason: "not_found" | "stale" | "not_running" | "finished" }
+  | {
+      ok: true;
+      correct: boolean;
+      correctIndex: number;
+      score: PlayerScore;
+      next: QuestionView | null;
+      /** มีค่าเมื่อข้อนี้เป็นข้อสุดท้าย — ผู้เล่นคนนี้จบเกมแล้ว */
+      finishedAt: number | null;
+    };
 
 /**
  * ตรวจคำตอบและเดินไปข้อถัดไปในทรานแซกชันเดียว
@@ -262,6 +295,7 @@ export async function submitAnswer(input: {
       where: eq(participant.id, input.participantId),
     });
     if (!row) return { ok: false, reason: "not_found" } as const;
+    if (row.finishedAt) return { ok: false, reason: "finished" } as const;
 
     const currentGame = await tx.query.game.findFirst({ where: eq(game.id, row.gameId) });
     if (!currentGame || currentGame.status !== "running") {
@@ -306,12 +340,21 @@ export async function submitAnswer(input: {
       currentServedAt: null,
     });
 
+    // ไม่มีข้อถัดไป = advanceQuestion เพิ่งปิดเกมของคนนี้ไป อ่านเวลาที่บันทึกไว้กลับมา
+    const finished = next
+      ? null
+      : await tx.query.participant.findFirst({
+          where: eq(participant.id, row.id),
+          columns: { finishedAt: true },
+        });
+
     return {
       ok: true,
       correct: isCorrect,
       correctIndex: current.correctIndex,
       score,
       next,
+      finishedAt: finished?.finishedAt?.getTime() ?? null,
     } as const;
   });
 }
@@ -322,6 +365,8 @@ export async function submitAnswer(input: {
 export type ScoreboardRow = ScoreRow & { userId: string; studentId: string | null };
 
 export async function getScoreboard(gameId: string): Promise<ScoreboardRow[]> {
+  const [current] = await db.select().from(game).where(eq(game.id, gameId));
+
   const rows = await db
     .select({
       participantId: participant.id,
@@ -333,6 +378,7 @@ export async function getScoreboard(gameId: string): Promise<ScoreboardRow[]> {
       correctCount: participant.correctCount,
       wrongCount: participant.wrongCount,
       totalAnswerMs: participant.totalAnswerMs,
+      finishedAt: participant.finishedAt,
     })
     .from(participant)
     .where(eq(participant.gameId, gameId))
@@ -340,7 +386,15 @@ export async function getScoreboard(gameId: string): Promise<ScoreboardRow[]> {
     // สลับอันดับได้ตามลำดับแถวที่ Postgres คืนมา แล้วยิง overtake มั่ว
     .orderBy(participant.joinedAt, participant.id);
 
-  return rows.sort(compareParticipants);
+  const startedAt = current?.startsAt?.getTime() ?? null;
+
+  return rows
+    .map(({ finishedAt, ...row }) => ({
+      ...row,
+      // เวลาที่ใช้ = ตั้งแต่เกมเริ่มจนตอบข้อสุดท้ายเสร็จ
+      finishedMs: finishedAt && startedAt ? Math.max(0, finishedAt.getTime() - startedAt) : null,
+    }))
+    .sort(compareParticipants);
 }
 
 /* ---------------------------------------------------- สถิติสำหรับ admin */

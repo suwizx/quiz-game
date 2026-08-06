@@ -54,6 +54,12 @@ export function ScoreboardTable({ rows, highlight, live, className }: Scoreboard
                 <td className="py-2 text-muted-foreground tabular-nums">{index + 1}</td>
                 <td className="max-w-0 truncate py-2 pr-2">
                   <span className={cn(isMe && "font-semibold")}>{row.nickname}</span>
+                  {/* ตอบครบทุกข้อแล้ว — เวลาที่ใช้คือเวลาปิดเกมของคนนี้ */}
+                  {row.finishedMs !== null && (
+                    <span className="ml-1.5 whitespace-nowrap rounded-sm bg-primary/15 px-1.5 py-0.5 text-[10px] text-primary tabular-nums">
+                      จบ {formatDuration(row.finishedMs)}
+                    </span>
+                  )}
                 </td>
                 <td className="py-2 text-right font-semibold tabular-nums">{row.bestStreak}</td>
                 <td className="py-2 text-right text-primary tabular-nums">{row.correctCount}</td>

@@ -28,6 +28,8 @@ export interface PlayerState extends PlayerScore {
   nickname: string;
   rank: number;
   question: QuestionView | null;
+  /** ตอบครบทุกข้อแล้ว — เวลาที่ใช้ (ms นับจากเกมเริ่ม) null คือยังเล่นอยู่ */
+  finishedMs: number | null;
 }
 
 export interface ScoreRow {
@@ -38,6 +40,8 @@ export interface ScoreRow {
   correctCount: number;
   wrongCount: number;
   totalAnswerMs: number;
+  /** เวลาที่ใช้จนตอบครบทุกข้อ (ms นับจากเกมเริ่ม) — null คือยังเล่นไม่จบ */
+  finishedMs: number | null;
   isMe?: boolean;
 }
 

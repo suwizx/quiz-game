@@ -88,6 +88,9 @@ export const gameSocket = new Elysia().ws("/ws/game", {
       score: result.score,
       next: result.next,
     } satisfies ServerEvent);
+
+    // ตอบข้อสุดท้ายไปแล้ว — ส่ง snapshot ตามไปให้ client รู้ว่าจบแล้วและใช้เวลาไปเท่าไหร่
+    if (result.finishedAt) await hub.pushStateTo(session.userId);
   },
 
   close(ws) {

@@ -98,6 +98,8 @@ export const participant = pgTable(
     }),
     currentServedAt: timestamp("current_served_at"),
     questionNumber: integer("question_number").default(0).notNull(),
+    /** ตอบครบทุกข้อแล้ว — จบเกมเฉพาะคนนี้ ไม่ต้องรอหมดเวลา */
+    finishedAt: timestamp("finished_at"),
 
     joinedAt: timestamp("joined_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")

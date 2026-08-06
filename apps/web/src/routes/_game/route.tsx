@@ -31,7 +31,7 @@ const routeForStatus = {
 } as const;
 
 function GameShell() {
-  const { game, reconnecting, connected } = useGameSocket();
+  const { game, finishedMs, reconnecting, connected } = useGameSocket();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
 
@@ -41,9 +41,11 @@ function GameShell() {
     // ดูกระดานคะแนนระหว่างเกมได้ ไม่ต้องถูกดึงกลับหน้าเล่น
     if (pathname === "/scoreboard" && game.status !== "ended") return;
 
-    const target = routeForStatus[game.status];
+    // ตอบครบทุกข้อแล้ว — ไม่มีอะไรให้ทำที่หน้าเล่นอีก ไปดูกระดานคะแนนแทน
+    const target =
+      game.status === "running" && finishedMs !== null ? "/scoreboard" : routeForStatus[game.status];
     if (pathname !== target) void navigate({ to: target, replace: true });
-  }, [game, pathname, navigate]);
+  }, [game, finishedMs, pathname, navigate]);
 
   return (
     <div className="relative h-full">

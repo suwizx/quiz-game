@@ -92,34 +92,36 @@ describe("queue", () => {
     expect(new Set(queue).size).toBe(ids.length);
   });
 
-  test("เดินจนหมดคิวแล้วสับใหม่วนต่อไม่มีวันหมด", () => {
+  test("เจอครบทุกข้อโดยไม่ซ้ำ แล้วคืน null (จบเกมของตัวเอง)", () => {
     let position = { queue: buildQueue(ids), index: 0 };
     const seen: string[] = [];
 
-    for (let i = 0; i < ids.length * 3; i++) {
+    for (let i = 0; i < ids.length; i++) {
       const result = nextQuestion(position, ids);
       expect(result).not.toBeNull();
       seen.push(result!.questionId);
       position = result!.next;
     }
 
-    expect(seen).toHaveLength(ids.length * 3);
-    expect(new Set(seen.slice(0, ids.length)).size).toBe(ids.length);
+    expect(new Set(seen).size).toBe(ids.length);
+    // ข้อถัดไปไม่มีแล้ว — ไม่วนกลับไปข้อเดิม
+    expect(nextQuestion(position, ids)).toBeNull();
+    expect(nextQuestion(position, ids)).toBeNull();
   });
 
-  test("ข้อแรกของรอบใหม่ไม่ซ้ำกับข้อสุดท้ายของรอบก่อน", () => {
-    for (let attempt = 0; attempt < 50; attempt++) {
-      let position = { queue: buildQueue(ids), index: 0 };
-      let last = "";
+  test("ข้อที่ admin เพิ่มระหว่างเกมถูกต่อท้ายคิวให้คนที่ join ไปแล้ว", () => {
+    let position = { queue: buildQueue(ids), index: 0 };
+    for (let i = 0; i < ids.length; i++) position = nextQuestion(position, ids)!.next;
+    expect(nextQuestion(position, ids)).toBeNull();
 
-      for (let i = 0; i < ids.length; i++) {
-        const result = nextQuestion(position, ids)!;
-        last = result.questionId;
-        position = result.next;
-      }
+    const withNew = [...ids, "q-new-1", "q-new-2"];
+    const first = nextQuestion(position, withNew);
+    expect(first).not.toBeNull();
+    position = first!.next;
+    const second = nextQuestion(position, withNew)!;
 
-      expect(nextQuestion(position, ids)!.questionId).not.toBe(last);
-    }
+    expect([first!.questionId, second.questionId].sort()).toEqual(["q-new-1", "q-new-2"]);
+    expect(nextQuestion(second.next, withNew)).toBeNull();
   });
 
   test("ไม่มีคำถามในระบบเลยคืน null", () => {
@@ -129,23 +131,24 @@ describe("queue", () => {
   test("ข้อที่ถูกลบระหว่างเกมถูกข้าม ไม่โผล่มาให้ตอบอีก", () => {
     const remaining = ids.filter((id) => id !== "q3" && id !== "q5");
     let position = { queue: [...ids], index: 0 };
+    const seen: string[] = [];
 
-    for (let i = 0; i < ids.length * 3; i++) {
-      const result = nextQuestion(position, remaining);
-      expect(result).not.toBeNull();
-      expect(remaining).toContain(result!.questionId);
-      position = result!.next;
+    for (let result = nextQuestion(position, remaining); result; ) {
+      seen.push(result.questionId);
+      position = result.next;
+      result = nextQuestion(position, remaining);
     }
+
+    expect(seen).not.toContain("q3");
+    expect(seen).not.toContain("q5");
+    expect(new Set(seen).size).toBe(remaining.length);
   });
 
-  test("ลบจนเหลือข้อเดียวก็ยังเดินต่อได้", () => {
-    let position = { queue: [...ids], index: 0 };
-
-    for (let i = 0; i < 5; i++) {
-      const result = nextQuestion(position, ["q7"]);
-      expect(result?.questionId).toBe("q7");
-      position = result!.next;
-    }
+  test("ลบจนเหลือข้อเดียว เจอข้อนั้นครั้งเดียวแล้วจบ", () => {
+    const position = { queue: [...ids], index: 0 };
+    const result = nextQuestion(position, ["q7"]);
+    expect(result?.questionId).toBe("q7");
+    expect(nextQuestion(result!.next, ["q7"])).toBeNull();
   });
 
   test("ลบคำถามหมดทุกข้อคืน null ไม่วนไม่รู้จบ", () => {

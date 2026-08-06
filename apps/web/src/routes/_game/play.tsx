@@ -29,7 +29,7 @@ interface Pending {
 }
 
 function PlayPage() {
-  const { question, score, rank, remainingMs, lastResult, answer, notices, dismissNotice } =
+  const { question, score, rank, remainingMs, lastResult, answer, notices, dismissNotice, finishedMs } =
     useGameSocket();
 
   const [pending, setPending] = useState<Pending | null>(null);
@@ -115,7 +115,8 @@ function PlayPage() {
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center text-center text-muted-foreground text-sm">
-              กำลังโหลดคำถาม…
+              {/* จบแล้วจะถูกพาไปหน้ากระดานคะแนนทันที ข้อความนี้เห็นแค่แวบเดียว */}
+              {finishedMs !== null ? "ตอบครบทุกข้อแล้ว…" : "กำลังโหลดคำถาม…"}
             </div>
           )}
         </div>

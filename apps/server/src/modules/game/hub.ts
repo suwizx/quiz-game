@@ -161,6 +161,7 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
 
   const rows = await service.getScoreboard(current.id);
   const rank = rows.findIndex((row) => row.participantId === me.id) + 1;
+  const mine = rows.find((row) => row.participantId === me.id);
 
   // ส่งคำถามให้เฉพาะตอนเกมกำลังเล่นอยู่ — ยังไม่เริ่ม/จบแล้วไม่ต้องมีข้อค้าง
   const question = current.status === "running" ? await service.serveQuestion(me.id) : null;
@@ -178,6 +179,7 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
       wrongCount: me.wrongCount,
       totalAnswerMs: me.totalAnswerMs,
       question,
+      finishedMs: mine?.finishedMs ?? null,
     },
   };
 }

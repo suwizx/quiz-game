@@ -108,6 +108,8 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         "ตอบทั้งหมด",
         "อัตราตอบถูก (%)",
         "เวลาตอบรวม (วินาที)",
+        "ตอบครบทุกข้อ",
+        "เวลาที่ใช้จนจบ (วินาที)",
       ],
       rows.map((row, index) => [
         index + 1,
@@ -119,6 +121,8 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
         row.correctCount + row.wrongCount,
         accuracyPercent(row.correctCount, row.wrongCount),
         (row.totalAnswerMs / 1000).toFixed(1),
+        row.finishedMs === null ? "ไม่" : "ใช่",
+        row.finishedMs === null ? "" : (row.finishedMs / 1000).toFixed(1),
       ]),
     );
 

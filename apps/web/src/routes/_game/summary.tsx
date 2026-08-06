@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_game/summary")({
 });
 
 function SummaryPage() {
-  const { scoreboard, nickname, score, rank } = useGameSocket();
+  const { scoreboard, nickname, score, rank, finishedMs } = useGameSocket();
   const podium = scoreboard[0];
 
   return (
@@ -36,6 +36,7 @@ function SummaryPage() {
 
         <p className="text-center text-muted-foreground text-xs">
           เวลาที่ใช้ตอบรวม {formatDuration(score.totalAnswerMs)}
+          {finishedMs !== null && ` · ตอบครบทุกข้อใน ${formatDuration(finishedMs)}`}
         </p>
       </div>
 

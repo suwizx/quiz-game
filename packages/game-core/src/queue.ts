@@ -22,11 +22,12 @@ export interface QueuePosition {
 }
 
 /**
- * ดึงคำถามถัดไป ถ้าหมดคิวแล้วสับใหม่วนต่อ (ไม่มีใครหมดคำถามก่อนหมดเวลา)
- * ตอนสับใหม่จะกันไม่ให้ข้อแรกซ้ำกับข้อสุดท้ายที่เพิ่งเจอไป
+ * ดึงคำถามถัดไป — คืน null เมื่อผู้เล่นคนนี้เจอครบทุกข้อแล้ว (= จบเกมของตัวเอง)
+ * ไม่วนซ้ำ เพราะรอบสองเป็นการตอบข้อที่จำคำตอบได้แล้ว ปั่น streak ได้ไม่ยุติธรรม
  *
- * คิวถูกสับไว้ตั้งแต่ตอน join ข้อที่ admin ลบ/ปิดใช้งานระหว่างเกมจึงยังค้างอยู่ในคิวเก่า
- * ต้องข้ามทิ้งด้วย questionIds (= ข้อที่ยัง active) ไม่ใช่ใช้แค่ตอนสับคิวใหม่
+ * คิวถูกสับไว้ตั้งแต่ตอน join จึงต้องรับมือสองอย่างที่เกิดระหว่างเกม
+ * - ข้อที่ถูกลบ/ปิดใช้งาน ยังค้างอยู่ในคิวเก่า → ข้ามทิ้ง
+ * - ข้อที่ admin เพิ่งเพิ่ม ไม่มีในคิวเก่า → ต่อท้ายให้ ไม่งั้นคนที่ join ก่อนไม่มีวันได้เจอ
  */
 export function nextQuestion(
   position: QueuePosition,
@@ -36,20 +37,18 @@ export function nextQuestion(
   if (active.size === 0) return null;
 
   let { queue, index } = position;
-  let reshuffled = false;
+  let extended = false;
 
   while (true) {
     if (index >= queue.length) {
-      // สับใหม่ได้ครั้งเดียวพอ — คิวใหม่สร้างจาก active ล้วน ๆ ข้อแรกใช้ได้แน่นอน
-      if (reshuffled) return null;
+      if (extended) return null;
 
-      const last = queue.at(-1);
-      queue = buildQueue(questionIds);
-      if (queue.length > 1 && queue[0] === last) {
-        [queue[0], queue[1]] = [queue[1] as string, queue[0] as string];
-      }
-      index = 0;
-      reshuffled = true;
+      const seen = new Set(queue);
+      const unseen = questionIds.filter((id) => !seen.has(id));
+      if (unseen.length === 0) return null; // เจอครบทุกข้อแล้ว
+
+      queue = [...queue, ...buildQueue(unseen)];
+      extended = true;
     }
 
     const questionId = queue[index];
