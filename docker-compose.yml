@@ -17,7 +17,9 @@ services:
       server:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      # ต้องเป็น 127.0.0.1 ไม่ใช่ localhost — ใน container localhost ชี้ ::1 ก่อน
+      # แต่ nginx listen 80 ผูกแค่ IPv4 ทำให้ container ขึ้น unhealthy ทั้งที่เว็บปกติดี
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/"]
       interval: 10s
       timeout: 5s
       retries: 5
