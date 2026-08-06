@@ -24,9 +24,19 @@ export function createAuth() {
 
       schema: schema,
     }),
-    // accounts.google.com ต้องอยู่ในนี้เพราะขากลับจาก OAuth บางจังหวะ Google
-    // ยิงมาพร้อม Origin ของตัวเอง แล้วโดน origin check ตีตกก่อนถึง callback
-    trustedOrigins: [env.CORS_ORIGIN, "https://accounts.google.com"],
+    trustedOrigins: [env.CORS_ORIGIN],
+    /**
+     * เชื่อ Google เป็น trusted provider — อีเมลเดียวกันให้ผูกเข้าบัญชีเดิมอัตโนมัติ
+     * ไม่งั้นคนที่เคยมีบัญชีอยู่แล้ว (เช่นสมัครตอน dev login) พอกดเข้าด้วย Google
+     * จะเจอ account_not_linked แล้วเข้าไม่ได้เลย
+     * ปลอดภัยเพราะ Google ยืนยันอีเมลของ @kmitl.ac.th ให้อยู่แล้ว
+     */
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["google"],
+      },
+    },
     /**
      * ปิด rate limit — ทั้งห้องล็อกอินพร้อมกันตอนเริ่มเกม
      * และเราอยู่หลัง Cloudflare Tunnel + nginx ที่แยก IP รายคนไม่ได้
