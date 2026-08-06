@@ -78,6 +78,7 @@ export interface PrepareData {
   game: GameState;
   nickname: string;
   joined: boolean;
+  isAdmin: boolean;
   onlineCount: number;
   players: LobbyPlayer[];
 }

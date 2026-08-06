@@ -392,7 +392,9 @@ export async function getScoreboard(gameId: string): Promise<ScoreboardRow[]> {
     .map(({ finishedAt, ...row }) => ({
       ...row,
       // เวลาที่ใช้ = ตั้งแต่เกมเริ่มจนตอบข้อสุดท้ายเสร็จ
-      finishedMs: finishedAt && startedAt ? Math.max(0, finishedAt.getTime() - startedAt) : null,
+      // ต้องไม่เป็น null เมื่อจบแล้ว เพราะ client ใช้ค่านี้ตัดสินว่า "จบหรือยัง"
+      // (เกมที่ไม่มี startsAt ด้วยเหตุผลใดก็ตาม ให้เป็น 0 ดีกว่ากลายเป็นยังไม่จบ)
+      finishedMs: finishedAt ? Math.max(0, finishedAt.getTime() - (startedAt ?? Date.now())) : null,
     }))
     .sort(compareParticipants);
 }

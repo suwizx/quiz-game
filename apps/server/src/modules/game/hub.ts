@@ -159,12 +159,15 @@ export async function buildStateFor(userId: string): Promise<ServerEvent | null>
   const me = await service.getParticipant(current.id, userId);
   if (!me) return { t: "state", game: state, me: null, onlineCount: onlineCount() };
 
+  // ส่งคำถามให้เฉพาะตอนเกมกำลังเล่นอยู่ — ยังไม่เริ่ม/จบแล้วไม่ต้องมีข้อค้าง
+  const question = current.status === "running" ? await service.serveQuestion(me.id) : null;
+
+  // ต้องอ่านกระดานหลัง serveQuestion เพราะถ้า pool หมดพอดี serveQuestion คือคนที่
+  // เพิ่งเขียน finishedAt ลงไป อ่านก่อนจะได้ finishedMs = null ทั้งที่ไม่มีข้อให้ตอบแล้ว
+  // แล้ว client ค้างอยู่หน้า "กำลังโหลดคำถาม" เพราะไม่รู้ว่าตัวเองจบแล้ว
   const rows = await service.getScoreboard(current.id);
   const rank = rows.findIndex((row) => row.participantId === me.id) + 1;
   const mine = rows.find((row) => row.participantId === me.id);
-
-  // ส่งคำถามให้เฉพาะตอนเกมกำลังเล่นอยู่ — ยังไม่เริ่ม/จบแล้วไม่ต้องมีข้อค้าง
-  const question = current.status === "running" ? await service.serveQuestion(me.id) : null;
 
   return {
     t: "state",

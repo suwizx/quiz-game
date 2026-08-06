@@ -3,8 +3,8 @@ import { Button } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
 import { Label } from "@singpore-game/ui/components/label";
 import { cn } from "@singpore-game/ui/lib/utils";
-import { createFileRoute } from "@tanstack/react-router";
-import { Check, CircleAlert, Loader2, Wifi } from "lucide-react";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { Check, CircleAlert, Loader2, SlidersHorizontal, Wifi } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -65,8 +65,18 @@ function PreparePage() {
   };
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-6">
+    <div className="relative flex h-full flex-col items-center justify-center px-6">
       {startsAt !== null && <Countdown startsAt={startsAt} />}
+
+      {/* ผู้ดูแลต้องมาที่หน้านี้เพื่อเข้าร่วมเหมือนคนอื่น จึงต้องมีทางกลับไปกดเริ่มเกม */}
+      {initial.isAdmin && (
+        <div className="absolute top-3 right-3">
+          <Button variant="outline" size="sm" render={<Link to="/admin" />}>
+            <SlidersHorizontal className="size-3.5" />
+            แผงควบคุม
+          </Button>
+        </div>
+      )}
 
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-1 text-center">
