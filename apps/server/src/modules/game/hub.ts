@@ -61,7 +61,8 @@ export async function broadcastLobby(gameId: string) {
 /* --------------------------------------------------- กระดาน + อันดับ */
 
 function toClientRows(rows: service.ScoreboardRow[]): ScoreRow[] {
-  return rows.map(({ userId: _userId, ...row }) => row);
+  // ตัด userId/studentId ทิ้งก่อนส่งออก — กระดานคะแนนทุกคนเห็น
+  return rows.map(({ userId: _userId, studentId: _studentId, ...row }) => row);
 }
 
 /**

@@ -3,7 +3,7 @@ import { Button } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@singpore-game/ui/components/tabs";
 import { createFileRoute } from "@tanstack/react-router";
-import { Play, RotateCcw, Square } from "lucide-react";
+import { Download, Play, RotateCcw, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -147,6 +147,21 @@ function PlayingTab() {
       <p className="text-muted-foreground text-xs">
         การนับถอยหลัง 3-2-1 ไม่กินเวลาเล่น · เปิดรอบใหม่จะปิดรอบปัจจุบันและล้างผู้เล่นทั้งหมด
       </p>
+
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-medium text-sm">กระดานคะแนน</p>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy || scoreboard.length === 0}
+          onClick={() =>
+            run(api.admin.exportScoreboard, `ดาวน์โหลดคะแนน ${scoreboard.length} คนแล้ว`)
+          }
+        >
+          <Download className="size-3.5" />
+          ดาวน์โหลด CSV
+        </Button>
+      </div>
 
       <ScoreboardTable rows={scoreboard} live={status !== "ended"} />
     </div>

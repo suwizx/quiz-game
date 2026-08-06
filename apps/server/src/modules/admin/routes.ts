@@ -7,10 +7,11 @@ import {
   removeAdmin,
 } from "@singpore-game/db/admins";
 import { question } from "@singpore-game/db/schema";
-import { CHOICE_COUNT } from "@singpore-game/game-core";
+import { CHOICE_COUNT, accuracyPercent } from "@singpore-game/game-core";
 import { and, eq, isNull } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 
+import { attachmentHeaders, toCsv } from "../../lib/csv";
 import { requireAdmin } from "../../lib/session";
 import * as hub from "../game/hub";
 import * as service from "../game/service";
@@ -29,6 +30,20 @@ const questionBody = t.Object({
   isActive: t.Optional(t.Boolean()),
   adminComment: t.Optional(t.Nullable(t.String())),
 });
+
+/**
+ * ตั้งชื่อไฟล์ตามเวลาที่เกมเริ่ม (ยังไม่เริ่มก็ใช้เวลาที่สร้างรอบ) หลายรอบจะได้ไม่ทับกัน
+ * container รันเป็น UTC จึงต้องบังคับโซนเวลาไทย ไม่งั้นชื่อไฟล์เพี้ยนไป 7 ชั่วโมง
+ * locale sv-SE ให้รูปแบบ "2026-08-05 16:30:00" อยู่แล้ว ตัดต่อง่ายกว่าประกอบเอง
+ */
+function scoreboardFilename(game: { startsAt: Date | null; createdAt: Date }) {
+  const at = game.startsAt ?? game.createdAt;
+  const [date, time] = at
+    .toLocaleString("sv-SE", { timeZone: "Asia/Bangkok" })
+    .split(" ") as [string, string];
+  const stamp = `${date}-${time.slice(0, 5).replace(":", "")}`;
+  return { name: `คะแนน-${stamp}.csv`, ascii: `scoreboard-${stamp}.csv` };
+}
 
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   .use(requireAdmin)
@@ -74,6 +89,41 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
     await hub.broadcastState();
     await hub.broadcastLobby(created.id);
     return await service.toGameState(created);
+  })
+
+  /* ------------------------------------------------- ส่งออกคะแนน */
+
+  .get("/export/scoreboard.csv", async () => {
+    const current = await service.getOrCreateGame();
+    const rows = await service.getScoreboard(current.id);
+
+    const csv = toCsv(
+      [
+        "อันดับ",
+        "รหัสนักศึกษา",
+        "ชื่อที่แสดง",
+        "สตรีคสูงสุด",
+        "ตอบถูก",
+        "ตอบผิด",
+        "ตอบทั้งหมด",
+        "อัตราตอบถูก (%)",
+        "เวลาตอบรวม (วินาที)",
+      ],
+      rows.map((row, index) => [
+        index + 1,
+        row.studentId,
+        row.nickname,
+        row.bestStreak,
+        row.correctCount,
+        row.wrongCount,
+        row.correctCount + row.wrongCount,
+        accuracyPercent(row.correctCount, row.wrongCount),
+        (row.totalAnswerMs / 1000).toFixed(1),
+      ]),
+    );
+
+    const filename = scoreboardFilename(current);
+    return new Response(csv, { headers: attachmentHeaders(filename.name, filename.ascii) });
   })
 
   /* -------------------------------------------------------- คำถาม */

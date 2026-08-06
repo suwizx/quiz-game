@@ -30,6 +30,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * โหลดไฟล์จาก endpoint ที่ต้องใช้ cookie ผ่าน fetch แล้วค่อยยัดใส่ <a download>
+ * ใช้ลิงก์ตรง ๆ ไม่ได้เพราะตอน dev คนละ origin กัน (web 3001 → server 3000)
+ */
+async function download(path: string, fallbackName: string) {
+  const response = await fetch(`${SERVER_URL}${path}`, { credentials: "include" });
+  if (!response.ok) {
+    throw new ApiError(`ดาวน์โหลดไม่สำเร็จ (${response.status})`, response.status);
+  }
+
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1];
+  const url = URL.createObjectURL(await response.blob());
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = encoded ? decodeURIComponent(encoded) : fallbackName;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 const post = <T,>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
@@ -72,6 +95,7 @@ export const api = {
     start: () => post<GameState>("/api/admin/game/start"),
     end: () => post<{ ok: true }>("/api/admin/game/end"),
     reset: () => post<GameState>("/api/admin/game/reset"),
+    exportScoreboard: () => download("/api/admin/export/scoreboard.csv", "scoreboard.csv"),
     questions: () => request<AdminQuestion[]>("/api/admin/questions"),
     createQuestion: (body: QuestionInput) => post<AdminQuestion>("/api/admin/questions", body),
     updateQuestion: (id: string, body: Partial<QuestionInput>) =>

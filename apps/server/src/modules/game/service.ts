@@ -318,13 +318,15 @@ export async function submitAnswer(input: {
 
 /* -------------------------------------------------------- กระดานคะแนน */
 
-export type ScoreboardRow = ScoreRow & { userId: string };
+/** userId/studentId ใช้ในฝั่ง server เท่านั้น (จับคู่ผู้เล่น + export) ห้ามส่งออกไปหา client */
+export type ScoreboardRow = ScoreRow & { userId: string; studentId: string | null };
 
 export async function getScoreboard(gameId: string): Promise<ScoreboardRow[]> {
   const rows = await db
     .select({
       participantId: participant.id,
       userId: participant.userId,
+      studentId: participant.studentId,
       nickname: participant.nickname,
       bestStreak: participant.bestStreak,
       currentStreak: participant.currentStreak,
