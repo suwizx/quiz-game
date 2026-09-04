@@ -24,6 +24,8 @@ const routeForStatus = {
   ended: "/summary",
 } as const;
 
+const GAME_ROUTES = ["/prepare", "/play", "/scoreboard", "/summary"] as const;
+
 function GameShell() {
   const { game, joined, finishedMs, reconnecting, connected } = useGameSocket();
   const navigate = useNavigate();
@@ -32,6 +34,9 @@ function GameShell() {
   useEffect(() => {
     // joined เป็น null แปลว่ายังไม่ได้ snapshot แรก — ยังตัดสินใจไม่ได้
     if (!game || joined === null) return;
+
+    // ถ้ากำลังอยู่หรือกำลังไปหน้านอกเกม (เช่น /admin, /login) ไม่ต้องดักเปลี่ยนหน้า
+    if (!GAME_ROUTES.includes(pathname as (typeof GAME_ROUTES)[number])) return;
 
     // ดูกระดานคะแนนระหว่างเกมได้ ไม่ต้องถูกดึงกลับหน้าเล่น
     if (pathname === "/scoreboard" && game.status !== "ended") return;

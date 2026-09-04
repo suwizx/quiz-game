@@ -29,9 +29,22 @@ function PreparePage() {
   } = useGameSocket();
 
   const [nickname, setNickname] = useState(initial.nickname);
+  const [isAdmin, setIsAdmin] = useState(initial.isAdmin);
   const [saving, setSaving] = useState(false);
   // จำว่าเข้าร่วม "รอบไหน" ไม่ใช่แค่ true/false — admin เปิดรอบใหม่แล้วต้องกลับไปเป็นยังไม่เข้าร่วม
   const [joinedGameId, setJoinedGameId] = useState(initial.joined ? initial.game.id : null);
+
+  // อัปเดตสิทธิ์แอดมินให้เป็นปัจจุบันเสมอ
+  useEffect(() => {
+    api
+      .config()
+      .then((res) => {
+        if (res?.user?.isAdmin !== undefined) {
+          setIsAdmin(res.user.isAdmin);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // ชื่อจาก server ชนะเสมอเมื่อ reconnect กลับมา (เช่นเปลี่ยนชื่อจากอีกแท็บ)
   useEffect(() => {
@@ -73,10 +86,10 @@ function PreparePage() {
       {startsAt !== null && <Countdown startsAt={startsAt} />}
 
       <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-30">
-        {initial.isAdmin ? (
+        {isAdmin ? (
           <Link
             to="/admin"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-muted hover:text-foreground transition-colors"
+            className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-muted hover:text-foreground transition-colors"
           >
             <SlidersHorizontal className="size-3.5" />
             แผงควบคุม
@@ -84,7 +97,7 @@ function PreparePage() {
         ) : (
           <Link
             to="/login"
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground transition-colors"
+            className="cursor-pointer inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground transition-colors"
           >
             <SlidersHorizontal className="size-3.5" />
             เข้าสู่ระบบผู้ดูแล
