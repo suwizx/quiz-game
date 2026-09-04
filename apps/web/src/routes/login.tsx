@@ -1,6 +1,7 @@
-import { Button } from "@singpore-game/ui/components/button";
+import { Button, buttonVariants } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -9,22 +10,18 @@ import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
-  beforeLoad: async () => {
-    const session = await authClient.getSession();
-    if (session.data) throw redirect({ to: "/prepare" });
-  },
   loader: () => api.config(),
 });
 
 function LoginPage() {
-  const { googleEnabled, devLogin } = Route.useLoaderData();
+  const { googleEnabled, devLogin, user } = Route.useLoaderData();
   const [signingIn, setSigningIn] = useState(false);
 
   const signIn = async () => {
     setSigningIn(true);
     const { error } = await authClient.signIn.social({
       provider: "google",
-      callbackURL: `${window.location.origin}/prepare`,
+      callbackURL: `${window.location.origin}/admin`,
       errorCallbackURL: `${window.location.origin}/login`,
     });
 
@@ -34,36 +31,119 @@ function LoginPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    await authClient.signOut();
+    api.admin.clearPin();
+    window.location.reload();
+  };
+
+  const handleSwitchAccount = async () => {
+    await authClient.signOut();
+    api.admin.clearPin();
+    void signIn();
+  };
+
   return (
     <div className="flex h-full flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-2 text-center">
-          <h1 className="font-bold text-3xl tracking-tight">ปริศนาฟ้าแลบ</h1>
-          <p className="text-muted-foreground text-sm">แข่งสะสม streak ให้ยาวที่สุด</p>
+          <h1 className="font-bold text-3xl tracking-tight">เข้าสู่ระบบผู้ดูแล</h1>
+          <p className="text-muted-foreground text-sm">
+            สำหรับผู้ดูแลระบบ (อีเมล @kmitl.ac.th หรืออีเมลผู้ดูแล)
+          </p>
         </div>
 
-        <div className="space-y-3">
-          <Button
-            className="h-11 w-full text-sm"
-            size="lg"
-            disabled={!googleEnabled || signingIn}
-            onClick={signIn}
-          >
-            <GoogleMark />
-            {signingIn ? "กำลังพาไปที่ Google…" : "เข้าสู่ระบบด้วย Google"}
-          </Button>
+        {user ? (
+          <div className="space-y-4 rounded-xl border border-border bg-card p-5 shadow-sm">
+            {user.isAdmin ? (
+              <div className="space-y-3 text-center">
+                <div className="inline-flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <ShieldCheck className="size-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">คุณเข้าสู่ระบบในฐานะผู้ดูแลแล้ว</p>
+                  <p className="text-muted-foreground text-xs">{user.email}</p>
+                </div>
+                <div className="pt-2 space-y-2">
+                  <Link
+                    to="/admin"
+                    className={buttonVariants({ className: "w-full text-sm", size: "lg" })}
+                  >
+                    ไปที่แผงควบคุมผู้ดูแล
+                  </Link>
+                  <Button
+                    variant="outline"
+                    className="w-full text-sm"
+                    onClick={handleSignOut}
+                  >
+                    ออกจากระบบ
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3 text-center">
+                <div className="inline-flex size-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-500">
+                  <ShieldAlert className="size-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">บัญชีนี้ไม่มีสิทธิ์ผู้ดูแลระบบ</p>
+                  <p className="text-muted-foreground text-xs break-all">
+                    {user.email}
+                  </p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    ต้องใช้อีเมลสถาบัน (@kmitl.ac.th) หรืออีเมลผู้ดูแล
+                  </p>
+                </div>
+                <div className="pt-2 space-y-2">
+                  <Button
+                    className="w-full text-sm"
+                    size="lg"
+                    disabled={!googleEnabled || signingIn}
+                    onClick={handleSwitchAccount}
+                  >
+                    <GoogleMark />
+                    {signingIn ? "กำลังพาไปที่ Google…" : "สลับบัญชี Google อื่น"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full text-sm"
+                    onClick={handleSignOut}
+                  >
+                    ออกจากระบบ
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Button
+              className="h-11 w-full text-sm"
+              size="lg"
+              disabled={!googleEnabled || signingIn}
+              onClick={signIn}
+            >
+              <GoogleMark />
+              {signingIn ? "กำลังพาไปที่ Google…" : "เข้าสู่ระบบด้วย Google"}
+            </Button>
 
-          <p className="text-center text-muted-foreground text-xs">
-            เข้าสู่ระบบด้วยอีเมล <span className="font-medium text-foreground">@kmitl.ac.th</span>{" "}
-            เท่านั้น
-          </p>
-
-          {!googleEnabled && (
-            <p className="rounded-md border border-border bg-muted/40 p-3 text-center text-muted-foreground text-xs">
-              ยังไม่ได้ตั้งค่า Google OAuth บนเซิร์ฟเวอร์ — ใส่ <code>GOOGLE_CLIENT_ID</code> และ{" "}
-              <code>GOOGLE_CLIENT_SECRET</code> ใน <code>apps/server/.env</code>
+            <p className="text-center text-muted-foreground text-xs">
+              ผู้เล่นทั่วไปสามารถเข้าเล่นได้ทันทีโดยไม่ต้องเข้าสู่ระบบ
             </p>
-          )}
+
+            {!googleEnabled && (
+              <p className="rounded-md border border-border bg-muted/40 p-3 text-center text-muted-foreground text-xs">
+                ยังไม่ได้ตั้งค่า Google OAuth บนเซิร์ฟเวอร์ — ใส่ <code>GOOGLE_CLIENT_ID</code> และ{" "}
+                <code>GOOGLE_CLIENT_SECRET</code> ใน <code>apps/server/.env</code>
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="text-center pt-1">
+          <Link to="/prepare" className="text-xs text-primary hover:underline">
+            ← กลับไปหน้าเล่นเกม
+          </Link>
         </div>
 
         {devLogin && <DevLogin />}

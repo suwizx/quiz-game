@@ -1,8 +1,8 @@
 import { Badge } from "@singpore-game/ui/components/badge";
-import { Button } from "@singpore-game/ui/components/button";
+import { Button, buttonVariants } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@singpore-game/ui/components/tabs";
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { Check, Download, Play, RotateCcw, Square, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { AdminsTab } from "@/components/admin/admins-tab";
 import { QuestionsTab } from "@/components/admin/questions-tab";
 import { ScoreboardTable, formatDuration } from "@/components/scoreboard-table";
 import { api } from "@/lib/api";
+import { authClient } from "@/lib/auth-client";
 import { useGameSocket } from "@/lib/game-socket";
 
 export const Route = createFileRoute("/_admin/admin")({
@@ -23,13 +24,33 @@ function AdminPage() {
   return (
     <div className="mx-auto flex h-full max-w-3xl flex-col overflow-hidden">
       <Tabs defaultValue="playing" className="flex h-full min-h-0 flex-col">
-        <div className="border-border border-b px-3 py-2">
-          <h1 className="mb-2 font-semibold text-sm">แผงควบคุมผู้ดูแล</h1>
-          <TabsList>
-            <TabsTrigger value="playing">กำลังเล่น</TabsTrigger>
-            <TabsTrigger value="questions">คำถาม</TabsTrigger>
-            <TabsTrigger value="admins">ผู้ดูแล</TabsTrigger>
-          </TabsList>
+        <div className="flex items-center justify-between border-border border-b px-3 py-2">
+          <div>
+            <h1 className="mb-2 font-semibold text-sm">แผงควบคุมผู้ดูแล</h1>
+            <TabsList>
+              <TabsTrigger value="playing">กำลังเล่น</TabsTrigger>
+              <TabsTrigger value="questions">คำถาม</TabsTrigger>
+              <TabsTrigger value="admins">ผู้ดูแล</TabsTrigger>
+            </TabsList>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/prepare" className={buttonVariants({ variant: "outline", size: "sm" })}>
+              ไปหน้าเล่นเกม
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-muted-foreground"
+              onClick={() => {
+                api.admin.clearPin();
+                void authClient.signOut().then(() => {
+                  window.location.href = "/prepare";
+                });
+              }}
+            >
+              ออกจากระบบ
+            </Button>
+          </div>
         </div>
 
         <TabsContent value="playing" className="min-h-0 flex-1 overflow-y-auto">

@@ -1,11 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { authClient } from "@/lib/auth-client";
-
-/** หน้าแรกไม่มีเนื้อหาของตัวเอง — พาไปตามสถานะการเข้าสู่ระบบ */
+/** หน้าแรกพาไปหน้าเตรียมตัวเล่นเกมทันที (ไม่ต้องล็อกอิน) */
 export const Route = createFileRoute("/")({
-  beforeLoad: async () => {
-    const session = await authClient.getSession();
-    throw redirect({ to: session.data ? "/prepare" : "/login" });
+  beforeLoad: () => {
+    throw redirect({ to: "/prepare" });
   },
 });

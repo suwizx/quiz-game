@@ -1,7 +1,6 @@
 import {
   adminEmails,
   isAdminEmail as isEnvAdminEmail,
-  isAllowedEmail as isEnvAllowedEmail,
 } from "@singpore-game/env/server";
 import { eq } from "drizzle-orm";
 
@@ -38,10 +37,9 @@ export async function isAdminEmail(email: string | null | undefined): Promise<bo
   return !!row;
 }
 
-/** ผ่านได้เมื่ออยู่ในโดเมนที่อนุญาต หรือเป็นผู้ดูแล (env หรือในตาราง) */
-export async function isAllowedEmail(email: string | null | undefined): Promise<boolean> {
-  if (!email) return false;
-  return isEnvAllowedEmail(email) || (await isAdminEmail(email));
+/** อนุญาตทุกอีเมล */
+export async function isAllowedEmail(_email: string | null | undefined): Promise<boolean> {
+  return true;
 }
 
 /** ผู้ดูแลทั้งหมด — เอา ADMIN_EMAILS ขึ้นก่อนเสมอ */

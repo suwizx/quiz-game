@@ -1,5 +1,5 @@
 import { CHOICE_LABELS, accuracyPercent } from "@singpore-game/game-core";
-import { Button } from "@singpore-game/ui/components/button";
+import { Button, buttonVariants } from "@singpore-game/ui/components/button";
 import { cn } from "@singpore-game/ui/lib/utils";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import {
@@ -8,22 +8,31 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  Loader2,
   Maximize,
   Minimize,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { type AdminQuestion, api } from "@/lib/api";
 
 export const Route = createFileRoute("/_admin/slides")({
   component: SlidesPage,
-  // ฉายเฉพาะข้อที่ใช้จริงในเกม — ข้อที่ปิดใช้งานไว้ไม่ต้องขึ้นจอ
-  loader: async () => (await api.admin.questions()).filter((question) => question.isActive),
 });
 
 function SlidesPage() {
-  const questions = Route.useLoaderData();
+  const [questions, setQuestions] = useState<AdminQuestion[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.admin
+      .questions()
+      .then((qs) => setQuestions(qs.filter((question) => question.isActive)))
+      .catch((err) => toast.error(err instanceof Error ? err.message : "โหลดคำถามไม่สำเร็จ"))
+      .finally(() => setLoading(false));
+  }, []);
 
   const [index, setIndex] = useState(0);
   // โน้ตเป็นของภายใน ("ผู้เล่นไม่เห็น") — ฉายขึ้นจอห้องได้แต่ต้องปิดได้ไวด้วยปุ่มเดียว
@@ -82,13 +91,21 @@ function SlidesPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [go, total, toggleFullscreen]);
 
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (total === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
         <p className="text-muted-foreground">ยังไม่มีคำถามที่เปิดใช้งาน</p>
-        <Button variant="outline" size="sm" render={<Link to="/admin" />}>
+        <Link to="/admin" className={buttonVariants({ variant: "outline", size: "sm" })}>
           กลับแผงควบคุม
-        </Button>
+        </Link>
       </div>
     );
   }
@@ -132,10 +149,10 @@ function SlidesPage() {
             {fullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
             <span className="hidden sm:inline">เต็มจอ</span>
           </Button>
-          <Button size="sm" variant="ghost" render={<Link to="/admin" />}>
+          <Link to="/admin" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             <X className="size-3.5" />
             <span className="hidden sm:inline">ปิด</span>
-          </Button>
+          </Link>
         </div>
       </div>
 

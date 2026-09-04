@@ -1,6 +1,6 @@
 import { CHOICE_COUNT, accuracyPercent } from "@singpore-game/game-core";
 import { Badge } from "@singpore-game/ui/components/badge";
-import { Button } from "@singpore-game/ui/components/button";
+import { Button, buttonVariants } from "@singpore-game/ui/components/button";
 import { Input } from "@singpore-game/ui/components/input";
 import { Label } from "@singpore-game/ui/components/label";
 import { Textarea } from "@singpore-game/ui/components/textarea";
@@ -54,10 +54,10 @@ export function QuestionsTab() {
           {questions.length} ข้อ
         </p>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" render={<Link to="/slides" />}>
+          <Link to="/slides" className={buttonVariants({ size: "sm", variant: "outline" })}>
             <Presentation className="size-3.5" />
             สไลด์เฉลย
-          </Button>
+          </Link>
           <Button size="sm" variant="outline" onClick={() => setCreating((value) => !value)}>
             <Plus className="size-3.5" />
             เพิ่มคำถาม

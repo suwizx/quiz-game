@@ -3,6 +3,22 @@ import type { GameState, LobbyPlayer, ScoreRow } from "@singpore-game/game-core"
 
 const SERVER_URL = env.VITE_SERVER_URL.replace(/\/$/, "");
 
+export function getGuestId(): string {
+  if (typeof window === "undefined") return "";
+  const KEY = "oph_guest_id";
+  let id = localStorage.getItem(KEY);
+  if (!id) {
+    id = `guest_${crypto.randomUUID().replace(/-/g, "")}`;
+    localStorage.setItem(KEY, id);
+  }
+  return id;
+}
+
+export function getAdminPinToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("oph_admin_pin_token");
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -13,11 +29,15 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const guestId = getGuestId();
+  const adminPinToken = getAdminPinToken();
   const response = await fetch(`${SERVER_URL}${path}`, {
     ...init,
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(guestId ? { "x-guest-id": guestId } : {}),
+      ...(adminPinToken ? { "x-admin-pin": adminPinToken } : {}),
       ...init?.headers,
     },
   });
@@ -35,7 +55,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
  * ใช้ลิงก์ตรง ๆ ไม่ได้เพราะตอน dev คนละ origin กัน (web 3001 → server 3000)
  */
 async function download(path: string, fallbackName: string) {
-  const response = await fetch(`${SERVER_URL}${path}`, { credentials: "include" });
+  const guestId = getGuestId();
+  const response = await fetch(`${SERVER_URL}${path}`, {
+    credentials: "include",
+    headers: {
+      ...(guestId ? { "x-guest-id": guestId } : {}),
+    },
+  });
   if (!response.ok) {
     throw new ApiError(`ดาวน์โหลดไม่สำเร็จ (${response.status})`, response.status);
   }
@@ -109,6 +135,19 @@ export const api = {
       post<AdminEntry>("/api/admin/admins", { email, note }),
     removeAdmin: (email: string) =>
       request<{ ok: true }>(`/api/admin/admins/${encodeURIComponent(email)}`, { method: "DELETE" }),
+    pinStatus: () => request<{ verified: boolean }>("/api/admin/pin-status"),
+    verifyPin: async (pin: string) => {
+      const res = await post<{ ok: true; token: string }>("/api/admin/verify-pin", { pin });
+      if (typeof window !== "undefined" && res.token) {
+        localStorage.setItem("oph_admin_pin_token", res.token);
+      }
+      return res;
+    },
+    clearPin: () => {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("oph_admin_pin_token");
+      }
+    },
   },
 };
 

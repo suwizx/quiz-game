@@ -1,17 +1,11 @@
-import { Outlet, createFileRoute, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import { WifiOff } from "lucide-react";
 import { useEffect } from "react";
 
 import { GameSocketProvider, useGameSocket } from "@/lib/game-socket";
-import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/_game")({
   component: GameLayout,
-  beforeLoad: async () => {
-    const session = await authClient.getSession();
-    if (!session.data) throw redirect({ to: "/login" });
-    return { session: session.data };
-  },
 });
 
 function GameLayout() {

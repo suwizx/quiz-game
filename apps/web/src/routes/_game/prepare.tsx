@@ -72,15 +72,25 @@ function PreparePage() {
     <div className="relative flex h-full flex-col items-center justify-center px-6">
       {startsAt !== null && <Countdown startsAt={startsAt} />}
 
-      {/* ผู้ดูแลต้องมาที่หน้านี้เพื่อเข้าร่วมเหมือนคนอื่น จึงต้องมีทางกลับไปกดเริ่มเกม */}
-      {initial.isAdmin && (
-        <div className="absolute top-3 right-3">
-          <Button variant="outline" size="sm" render={<Link to="/admin" />}>
+      <div className="absolute top-3 right-3">
+        {initial.isAdmin ? (
+          <Link
+            to="/admin"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-muted hover:text-foreground transition-colors"
+          >
             <SlidersHorizontal className="size-3.5" />
             แผงควบคุม
-          </Button>
-        </div>
-      )}
+          </Link>
+        ) : (
+          <Link
+            to="/login"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <SlidersHorizontal className="size-3.5" />
+            เข้าสู่ระบบผู้ดูแล
+          </Link>
+        )}
+      </div>
 
       <div className="w-full max-w-sm space-y-8">
         <div className="space-y-1 text-center">
@@ -141,7 +151,7 @@ function PreparePage() {
             </Button>
           </div>
           <p className="text-muted-foreground text-xs">
-            ค่าเริ่มต้นคือ &quot;รหัสนักศึกษา ชื่อ-นามสกุล&quot; จากรายชื่อ แก้ไขได้ตามต้องการ
+            ตั้งชื่อเล่นหรือชื่อของคุณเพื่อใช้แสดงบนกระดานคะแนน แก้ไขได้ตามต้องการ
           </p>
         </div>
 

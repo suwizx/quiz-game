@@ -1,25 +1,54 @@
-# ทับค่าจาก docker-compose.yml สำหรับเครื่อง production ที่อยู่หลัง Cloudflare Tunnel
-#
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-#
-# เปิดออกเน็ตแค่ web (พอร์ต 3080 บน loopback) — tunnel ชี้มาที่พอร์ตนี้พอร์ตเดียว
-# ส่วน /api และ /ws ให้ nginx ใน container web proxy ต่อไปที่ server เอง
+name: oph-game
+
 services:
   web:
     build:
+      context: .
+      dockerfile: apps/web/Dockerfile
       args:
-        VITE_SERVER_URL: https://quiz.suwizx.dev
-    ports: !override
+        VITE_SERVER_URL: https://oph-game.creasy.club
+    init: true
+    ports:
       - "127.0.0.1:3080:80"
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
   server:
-    # ไม่ publish ออกโฮสต์ — เครื่องนี้มีบริการอื่นใช้ 3000 อยู่แล้ว
-    ports: !override []
-    environment:
-      NODE_ENV: production
-      CORS_ORIGIN: https://quiz.suwizx.dev
-      BETTER_AUTH_URL: https://quiz.suwizx.dev
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?ต้องตั้ง POSTGRES_PASSWORD ใน .env}@postgres:5432/singpore-game
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    init: true
+    env_file:
+      - path: .env.production
+        required: true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://localhost:3000/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - default
+      - postgres_net
+    restart: unless-stopped
 
-  postgres:
-    ports: !override []
+networks:
+  default:
+  postgres_net:
+    name: postgres_default
+    external: true
+

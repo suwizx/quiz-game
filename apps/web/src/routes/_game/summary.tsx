@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Check, Trophy, X, Zap } from "lucide-react";
 
 import { ScoreboardTable, formatDuration } from "@/components/scoreboard-table";
-import { authClient } from "@/lib/auth-client";
 import { useGameSocket } from "@/lib/game-socket";
 
 export const Route = createFileRoute("/_game/summary")({
@@ -49,12 +48,10 @@ function SummaryPage() {
           variant="outline"
           className="w-full"
           onClick={() => {
-            void authClient.signOut().then(() => {
-              window.location.href = "/login";
-            });
+            window.location.href = "/prepare";
           }}
         >
-          ออกจากระบบ
+          กลับหน้าเตรียมตัว
         </Button>
       </div>
     </div>

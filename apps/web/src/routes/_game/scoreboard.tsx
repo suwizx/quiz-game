@@ -1,4 +1,4 @@
-import { Button } from "@singpore-game/ui/components/button";
+import { Button, buttonVariants } from "@singpore-game/ui/components/button";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, PartyPopper } from "lucide-react";
 
@@ -25,10 +25,10 @@ function ScoreboardPage() {
         </div>
         {/* คนที่ตอบครบแล้วไม่มีข้อให้กลับไปตอบ ปุ่มนี้จึงไม่ต้องมี */}
         {live && !finished && (
-          <Button variant="outline" size="sm" render={<Link to="/play" />}>
+          <Link to="/play" className={buttonVariants({ variant: "outline", size: "sm" })}>
             <ArrowLeft className="size-3.5" />
             กลับไปเล่น {rank ? `(#${rank})` : ""}
-          </Button>
+          </Link>
         )}
       </div>
 

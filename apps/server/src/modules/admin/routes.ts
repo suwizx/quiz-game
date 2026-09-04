@@ -11,8 +11,9 @@ import { CHOICE_COUNT, accuracyPercent } from "@singpore-game/game-core";
 import { and, eq, isNull } from "drizzle-orm";
 import { Elysia, t } from "elysia";
 
+import { env } from "@singpore-game/env/server";
 import { attachmentHeaders, toCsv } from "../../lib/csv";
-import { requireAdmin } from "../../lib/session";
+import { createPinToken, isPinVerified, requireAdmin, requireAdminAuth } from "../../lib/session";
 import * as hub from "../game/hub";
 import * as service from "../game/service";
 
@@ -46,6 +47,40 @@ function scoreboardFilename(game: { startsAt: Date | null; createdAt: Date }) {
 }
 
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
+  .use(requireAdminAuth)
+
+  /* ------------------------------------------------------ ยืนยัน PIN */
+
+  .get("/pin-status", ({ request, user }) => ({
+    verified: isPinVerified(request.headers, user.id),
+  }))
+  .post(
+    "/verify-pin",
+    ({ body, user, cookie: { admin_pin }, status, request }) => {
+      if (body.pin.trim() !== env.ADMIN_PIN.trim()) {
+        return status(400, { message: "รหัส PIN ไม่ถูกต้อง" });
+      }
+      const token = createPinToken(user.id);
+      const isHttps =
+        request.headers.get("x-forwarded-proto") === "https" ||
+        env.BETTER_AUTH_URL.startsWith("https");
+      admin_pin?.set({
+        value: token,
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: isHttps,
+        maxAge: 86400,
+      });
+      return { ok: true, token };
+    },
+    {
+      body: t.Object({
+        pin: t.String({ minLength: 1 }),
+      }),
+    },
+  )
+
   .use(requireAdmin)
 
   /* ------------------------------------------------------ ควบคุมเกม */
