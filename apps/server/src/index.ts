@@ -13,7 +13,7 @@ const app = new Elysia()
     cors({
       origin: env.CORS_ORIGIN,
       methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
+      allowedHeaders: ["Content-Type", "Authorization", "x-guest-id", "x-admin-pin"],
       // ตอน dev เว็บกับ API คนละ origin ถ้าไม่ expose ไว้ js อ่านชื่อไฟล์ CSV ไม่ได้
       exposeHeaders: ["Content-Disposition"],
       credentials: true,

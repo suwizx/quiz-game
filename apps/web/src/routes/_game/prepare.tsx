@@ -72,7 +72,7 @@ function PreparePage() {
     <div className="relative flex h-full flex-col items-center justify-center px-6">
       {startsAt !== null && <Countdown startsAt={startsAt} />}
 
-      <div className="absolute top-3 right-3">
+      <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-30">
         {initial.isAdmin ? (
           <Link
             to="/admin"

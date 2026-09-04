@@ -10,7 +10,10 @@ import { authClient } from "@/lib/auth-client";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
-  loader: () => api.config(),
+  loader: () =>
+    api
+      .config()
+      .catch(() => ({ googleEnabled: true, devLogin: false, user: null })),
 });
 
 function LoginPage() {
