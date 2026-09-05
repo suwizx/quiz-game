@@ -18,6 +18,11 @@ export interface Connection {
   userId: string;
   isAdmin: boolean;
   send: (event: ServerEvent) => void;
+  /**
+   * ส่ง JSON ที่ประกอบมาแล้ว — กระดานคะแนนก้อนเดียวกันถูกส่งให้ทุกคน
+   * ถ้าปล่อยให้ ws.send stringify เองจะกลายเป็น serialize ก้อน 46 KB ซ้ำ 260 รอบต่อวินาที
+   */
+  sendRaw: (data: string) => void;
 }
 
 type Participant = NonNullable<Awaited<ReturnType<typeof service.getParticipant>>>;
@@ -29,6 +34,17 @@ let previousNicknames = new Map<string, string>();
 /** เกมที่อันดับด้านบนเป็นของรอบนั้น — คนละรอบต้องไม่เอามาเทียบกัน */
 let previousGameId: string | null = null;
 let loopStarted = false;
+/** ตัวนับไว้ยิงกระดานคะแนนทุก ๆ N tick ไม่ใช่ทุก tick */
+let scoreboardTick = 0;
+
+/**
+ * กระดานคะแนนก้อนละ ~46 KB ถ้ายิงทุกวินาทีที่ 260 คน = ~98 Mbps ที่ server ต้องดันออก
+ * ลดครึ่งหนึ่งแล้วยังทันเกม เพราะ tick (ก้อนเล็ก) ยังวิ่งทุกวินาทีให้นาฬิกาเดินลื่น
+ */
+const SCOREBOARD_EVERY_N_TICKS = 2;
+
+/** tick ที่ค้างนานกว่านี้ถือว่าเจ๊ง — ต้องเริ่มรอบใหม่ ไม่ใช่รอตลอดกาล */
+const STUCK_TICK_MS = 10_000;
 
 export function addConnection(connection: Connection) {
   connections.set(connection.id, connection);
@@ -97,13 +113,14 @@ async function pushScoreboard(gameId: string, notifyOvertake = false) {
   const clientRows = toClientRows(rows);
   const ranks = toRankMap(rows);
 
+  // เดิม rows.find ต่อ connection = สแกน 260 × 260 ครั้งทุกวินาที
+  const byUser = new Map(rows.map((row) => [row.userId, row] as const));
+  const rowsJson = JSON.stringify(clientRows);
+
   for (const connection of connections.values()) {
-    const mine = rows.find((row) => row.userId === connection.userId);
-    connection.send({
-      t: "scoreboard",
-      rows: clientRows,
-      myRank: mine ? (ranks.get(mine.participantId) ?? null) : null,
-    });
+    const mine = byUser.get(connection.userId);
+    const myRank = mine ? (ranks.get(mine.participantId) ?? null) : null;
+    connection.sendRaw(`{"t":"scoreboard","rows":${rowsJson},"myRank":${myRank ?? "null"}}`);
   }
 
   // มีแต่ tick ตอนเกมกำลังเล่นที่แตะ state ของอันดับก่อนหน้า ผู้เรียกอื่น
@@ -267,13 +284,28 @@ export function startLoop() {
   loopStarted = true;
 
   let ticking = false;
+  let tickStartedAt = 0;
+  let generation = 0;
+
   setInterval(() => {
     // รอบก่อนยังไม่จบ — ข้ามรอบนี้ ไม่ใช่รันทับกันจนอันดับที่ใช้เทียบเพี้ยน
     // หรือเผลอเรียก finishGame สองครั้ง
-    if (ticking) return;
+    if (ticking) {
+      /**
+       * ...แต่ข้ามตลอดกาลไม่ได้ ถ้า query ค้าง (เช่น pool ตัน) flag นี้จะค้าง true
+       * แล้วเกมหยุดเดินถาวรโดยที่ process ยังอยู่และ healthcheck ยังเขียว
+       * เคยเกิดจริงตอนเทส 260 คน — ยอมให้ tick ซ้อนกันดีกว่าเกมตายเงียบ ๆ
+       */
+      if (Date.now() - tickStartedAt < STUCK_TICK_MS) return;
+      console.error(`[hub] tick ค้างมา ${Date.now() - tickStartedAt}ms — บังคับเริ่มรอบใหม่`);
+    }
+
     ticking = true;
+    tickStartedAt = Date.now();
+    // รอบที่ค้างอยู่อาจกลับมาทีหลัง ต้องไม่ให้มันไปปลด flag ของรอบใหม่
+    const mine = ++generation;
     void tick().finally(() => {
-      ticking = false;
+      if (mine === generation) ticking = false;
     });
   }, TICK_INTERVAL_MS);
 
@@ -311,7 +343,9 @@ async function tick() {
       serverNow: now,
       onlineCount: onlineCount(),
     });
-    await pushScoreboard(current.id, true);
+
+    scoreboardTick = (scoreboardTick + 1) % SCOREBOARD_EVERY_N_TICKS;
+    if (scoreboardTick === 0) await pushScoreboard(current.id, true);
     return;
   }
 

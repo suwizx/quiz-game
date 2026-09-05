@@ -56,7 +56,12 @@ export const gameRoutes = new Elysia({ prefix: "/api/game" })
         studentId: user.studentId,
       });
 
-      await hub.broadcastLobby(current.id);
+      /**
+       * ไม่ broadcastLobby ตรงนี้ — ลูปกลางยิงให้ทุกวินาทีอยู่แล้ว
+       * ถ้ายิงตอน join ด้วย คนเข้าพร้อมกัน N คนจะกลายเป็น N × (query กระดาน + ส่ง N ข้อความ)
+       * ตอนเทส 260 คนออกมาเป็น 37,878 ข้อความ / 2 GB และทำให้ POST /join ค้างถึง 11 วินาที
+       * ผู้เล่นคนอื่นเห็นช้าลงอย่างมาก 1 วินาที ซึ่งไม่มีใครสังเกตได้
+       */
       // แท็บอื่นของคนเดียวกันต้องรู้ว่าเข้าร่วมแล้วด้วย ไม่ใช่รู้แค่แท็บที่กด
       await hub.pushStateTo(user.id);
       return { participantId: row.id, nickname: row.nickname };

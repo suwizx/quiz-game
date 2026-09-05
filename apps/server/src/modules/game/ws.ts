@@ -35,6 +35,14 @@ export const gameSocket = new Elysia().ws("/ws/game", {
           // socket ปิดไปแล้ว — ปล่อยให้ close handler เก็บกวาด
         }
       },
+      sendRaw: (data) => {
+        try {
+          // string ถูกส่งดิบ ๆ ไม่ผ่าน stringify ซ้ำ — hub ประกอบ JSON มาให้แล้ว
+          ws.send(data);
+        } catch {
+          // เหมือนกับ send
+        }
+      },
     });
 
     // snapshot ก้อนแรก: client กู้สถานะทั้งหมดจากตรงนี้

@@ -185,8 +185,14 @@ export async function listLobbyPlayers(gameId: string): Promise<LobbyPlayer[]> {
 /** เงื่อนไข "ข้อที่เอาไปแจกในเกมได้" — ยังเปิดใช้งานและยังไม่ถูกลบ */
 const servable = and(eq(question.isActive, true), isNull(question.deletedAt));
 
-async function activeQuestionIds(): Promise<string[]> {
-  const rows = await db.select({ id: question.id }).from(question).where(servable);
+/**
+ * ⚠️ ต้องส่ง tx เข้ามาเสมอเมื่อเรียกจากในทรานแซกชัน
+ * ถ้าใช้ db ตัวกลางแทน ทรานแซกชันจะถือ connection ไว้หนึ่งตัวแล้วขอตัวที่สอง
+ * จาก pool เดียวกัน — พอมีคนตอบพร้อมกันเท่าจำนวน pool ทุกคนจะรอ connection
+ * ที่ไม่มีวันว่าง แล้วทั้งเซิร์ฟค้างถาวร (เคยเกิดจริงตอนเทส 260 คน)
+ */
+async function activeQuestionIds(tx: DbOrTx = db): Promise<string[]> {
+  const rows = await tx.select({ id: question.id }).from(question).where(servable);
   return rows.map((row) => row.id);
 }
 
@@ -247,7 +253,7 @@ async function markFinished(tx: DbOrTx, row: Participant): Promise<Date> {
 }
 
 async function advanceQuestion(tx: DbOrTx, row: Participant): Promise<QuestionView | null> {
-  const ids = await activeQuestionIds();
+  const ids = await activeQuestionIds(tx);
   const picked = nextQuestion({ queue: row.queue, index: row.queueIndex }, ids);
 
   // ไม่มีคำถามที่เปิดใช้งานเลยสักข้อ — เป็นเรื่องของ admin ไม่ใช่ผู้เล่นเล่นครบ
